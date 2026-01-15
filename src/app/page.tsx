@@ -1,100 +1,70 @@
-import Image from "next/image";
 import Link from "next/link";
+
+const CA = "0x148a3a811979e5BF8366FC279B2d67742Fe17777";
 
 export default function HomePage() {
   return (
-    <main className="relative min-h-screen overflow-hidden text-white">
-      {/* HERO BACKGROUND */}
-      <div className="absolute inset-0 -z-10">
-        <Image
-          src="/hero.png"
-          alt="PHUCKMC hero"
-          fill
-          priority
-          sizes="100vw"
-          style={{ objectFit: "cover" }}
-        />
-        <div className="absolute inset-0 bg-black/70" />
-        <div className="absolute inset-0 bg-gradient-to-b from-purple-900/30 via-transparent to-black/60" />
-      </div>
+    <main className="hero">
+      <div className="hero-bg" />
 
-      {/* CONTENT */}
-      <div className="mx-auto max-w-7xl px-6 py-24">
-        <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight">
-          PHUCK<span className="text-purple-400">MC</span>
-        </h1>
+      <div className="container">
+        <h1>PHUCKMC</h1>
 
-        <p className="mt-4 text-lg md:text-xl text-white/85 max-w-2xl leading-relaxed">
-          Calm money. Loud memes.
-          <br />
-          <span className="text-white font-semibold">
-            Fuck what the chart says.
-          </span>
+        <p>
+          Calm money. Loud memes.<br />
+          <b>Fuck what the chart says.</b>
         </p>
 
-        <div className="mt-8 flex flex-wrap gap-4">
-          <Link
-            href="https://nad.fun/tokens/0x148a3a811979e5BF8366FC279B2d67742Fe17777"
+        <div className="cta-row">
+          <a
+            className="btn primary"
+            href={`https://nad.fun/tokens/${CA}`}
             target="_blank"
-            className="px-6 py-3 rounded-2xl bg-purple-600 hover:bg-purple-500 transition text-white font-semibold shadow-lg shadow-purple-900/30"
+            rel="noreferrer"
           >
             Buy on Nad.fun
-          </Link>
+          </a>
 
-          <Link
+          <a
+            className="btn"
             href="https://t.me/YOUR_TELEGRAM"
             target="_blank"
-            className="px-6 py-3 rounded-2xl border border-white/30 hover:border-white/60 transition text-white/95 font-semibold bg-white/5"
+            rel="noreferrer"
           >
             Join Telegram →
-          </Link>
+          </a>
         </div>
 
-        <div className="mt-8 text-sm text-white/75">
-          <div className="font-semibold">CA:</div>
-          <div className="break-all">
-            0x148a3a811979e5BF8366FC279B2d67742Fe17777
-          </div>
+        <div className="kv">
+          <div><b>CA:</b> {CA}</div>
         </div>
 
-        {/* QUICK PULSE PANEL */}
-        <div className="mt-10 rounded-2xl border border-white/15 bg-black/35 backdrop-blur px-6 py-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-white/90">
-            <div>
-              <div className="text-xs uppercase tracking-wider text-white/60">
-                Project pulse
-              </div>
-              <div className="mt-2 text-2xl font-bold">Live soon</div>
-              <div className="mt-1 text-sm text-white/70">
-                We’re wiring the on-chain stats.
-              </div>
+        <section className="panel">
+          <div className="panel-header">PROJECT PULSE</div>
+
+          <div className="panel-body">
+            <div className="card">
+              <h3>Live soon</h3>
+              <p>We’re wiring the on-chain stats.</p>
             </div>
 
-            <div className="md:text-center">
-              <div className="text-xs uppercase tracking-wider text-white/60">
-                PHUCK Swap
-              </div>
-              <div className="mt-2 text-lg font-semibold">
-                fees → buyback + rewards
-              </div>
-              <div className="mt-1 text-sm text-white/70">
-                Make the meme fund itself.
-              </div>
+            <div className="card">
+              <h3>PHUCK Swap</h3>
+              <p>fees → buyback + rewards<br />Make the meme fund itself.</p>
+              <p style={{ marginTop: 10 }}>
+                <Link href="/swap" className="btn">Open Swap</Link>
+              </p>
             </div>
 
-            <div className="md:text-right">
-              <div className="text-xs uppercase tracking-wider text-white/60">
-                Staking
-              </div>
-              <div className="mt-2 text-lg font-semibold">
-                lock in • chill out
-              </div>
-              <div className="mt-1 text-sm text-white/70">
-                Earn while you ignore the noise.
-              </div>
+            <div className="card">
+              <h3>Staking</h3>
+              <p>lock in • chill out<br />Earn while you ignore the noise.</p>
+              <p style={{ marginTop: 10 }}>
+                <Link href="/staking" className="btn">Open Staking</Link>
+              </p>
             </div>
           </div>
-        </div>
+        </section>
       </div>
     </main>
   );
