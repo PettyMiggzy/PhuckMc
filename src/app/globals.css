@@ -2,9 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Small fallback so if anything ever breaks, it STILL won't look like a 1999 site */
 html, body {
   height: 100%;
-  background: #05010b;
-  color: white;
 }
