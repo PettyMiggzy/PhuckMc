@@ -1,51 +1,58 @@
 "use client";
 
-import "@rainbow-me/rainbowkit/styles.css";
 import * as React from "react";
-import { WagmiProvider, http } from "wagmi";
+import { WagmiProvider, createConfig, http } from "wagmi";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { RainbowKitProvider, getDefaultConfig } from "@rainbow-me/rainbowkit";
-import { defineChain } from "viem";
+import { RainbowKitProvider, darkTheme } from "@rainbow-me/rainbowkit";
+import { injected, walletConnect } from "wagmi/connectors";
+import "@rainbow-me/rainbowkit/styles.css";
 
-/* ---------- MONAD CHAIN ---------- */
-const monad = defineChain({
-  id: 1337, // Monad testnet / placeholder (safe for now)
+const projectId = process.env.NEXT_PUBLIC_WC_PROJECT_ID ?? "";
+const rpcUrl = process.env.NEXT_PUBLIC_MONAD_RPC ?? "https://rpc.monad.xyz";
+
+// NOTE: if Monad chainId differs in your wallet/network, change id here.
+const monad = {
+  id: 20143,
   name: "Monad",
-  nativeCurrency: {
-    name: "MON",
-    symbol: "MON",
-    decimals: 18,
-  },
-  rpcUrls: {
-    default: { http: ["https://rpc.monad.xyz"] },
-  },
-  blockExplorers: {
-    default: {
-      name: "Monad Explorer",
-      url: "https://explorer.monad.xyz",
-    },
-  },
-});
+  nativeCurrency: { name: "MON", symbol: "MON", decimals: 18 },
+  rpcUrls: { default: { http: [rpcUrl] } },
+  blockExplorers: { default: { name: "MonadScan", url: "https://monadscan.com" } },
+} as const;
 
-/* ---------- WAGMI CONFIG ---------- */
-const config = getDefaultConfig({
-  appName: "PHUCKMC",
-  projectId: process.env.NEXT_PUBLIC_WC_PROJECT_ID!,
+const config = createConfig({
   chains: [monad],
   transports: {
-    [monad.id]: http("https://rpc.monad.xyz"),
+    [monad.id]: http(rpcUrl),
   },
+  connectors: [
+    injected(),
+    walletConnect({
+      projectId,
+      metadata: {
+        name: "PHUCKMC",
+        description: "PHUCKMC Staking",
+        url: "https://phuckmc.com",
+        icons: ["https://phuckmc.com/icon.png"],
+      },
+    }),
+  ],
   ssr: true,
 });
 
 const queryClient = new QueryClient();
 
-/* ---------- PROVIDER ---------- */
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider modalSize="compact">
+        <RainbowKitProvider
+          theme={darkTheme({
+            accentColor: "#7c3aed",
+            accentColorForeground: "white",
+            borderRadius: "large",
+          })}
+          initialChain={monad}
+        >
           {children}
         </RainbowKitProvider>
       </QueryClientProvider>
