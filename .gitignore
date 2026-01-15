@@ -11,3 +11,9 @@ node_modules/
 .next/
 dist/
 .env
+.next/
+node_modules/
+dist/
+.env
+.env.local
+*.log
