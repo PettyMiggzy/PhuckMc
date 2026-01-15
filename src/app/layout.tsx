@@ -1,16 +1,8 @@
-import "./globals.css";
-import { Providers } from "./providers";
-
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return (
-    <html lang="en">
-      <body>
-        <Providers>{children}</Providers>
-      </body>
-    </html>
-  );
-}
+export const metadata = {
+  title: "PHUCKMC",
+  description: "PHUCKMC on Monad",
+  icons: {
+    icon: "/phuckmc-icon.png",
+    apple: "/phuckmc-icon.png",
+  },
+};
