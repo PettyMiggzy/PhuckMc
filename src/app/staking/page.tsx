@@ -8,7 +8,12 @@ import StakingPanel from '@/components/StakingPanel'
 export default function StakingPage() {
   return (
     <main className="relative min-h-screen text-white">
-      {/* BACKGROUND — FORCED BEHIND */}
+      {/* 🔥 DEBUG BAR — if you don’t see this, Vercel is NOT using this file */}
+      <div className="fixed top-0 left-0 right-0 z-[999999] bg-red-600 text-white text-center py-2 font-bold">
+        STAKING PAGE LOADED (DEBUG)
+      </div>
+
+      {/* BACKGROUND */}
       <div className="fixed inset-0 -z-10">
         <Image
           src="/hero.png"
@@ -23,7 +28,7 @@ export default function StakingPage() {
       </div>
 
       {/* NAV */}
-      <header className="relative z-20 mx-auto max-w-7xl px-6 pt-6">
+      <header className="relative z-20 mx-auto max-w-7xl px-6 pt-16">
         <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/30 backdrop-blur-md px-4 py-3">
           <div className="flex items-center gap-3">
             <div className="relative h-9 w-9 overflow-hidden rounded-xl border border-white/10 bg-black/40">
@@ -45,8 +50,8 @@ export default function StakingPage() {
         </div>
       </header>
 
-      {/* CONTENT — FORCED ABOVE */}
-      <section className="relative z-10 mx-auto max-w-7xl px-6 pt-14 pb-20">
+      {/* CONTENT */}
+      <section className="relative z-10 mx-auto max-w-7xl px-6 pt-10 pb-20">
         <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight">
           Stake <span className="text-purple-300">PHUCKMC</span>
         </h1>
