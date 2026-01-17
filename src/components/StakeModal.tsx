@@ -63,13 +63,17 @@ export default function StakeModal({
   }, [amount, tokenDecimals])
 
   const { data: allowance } = useReadContract({
-    address: tokenAddress,
-    abi: ERC20_ABI,
-    functionName: 'allowance',
-    args: address && tokenAddress ? [address, STAKING_ADDRESS] : undefined,
-    query: { enabled: !!address && !!tokenAddress },
-    watch: true,
-  })
+  address: tokenAddress,
+  abi: ERC20_ABI,
+  functionName: 'allowance',
+  args: address && tokenAddress ? [address, STAKING_ADDRESS] : undefined,
+  query: {
+    enabled: !!address && !!tokenAddress,
+    staleTime: 5_000,
+    refetchInterval: 10_000,
+  },
+})
+
 
   const needsApprove =
     !!tokenAddress && (allowance ?? 0n) < amountWei && amountWei > 0n
