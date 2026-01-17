@@ -16,7 +16,6 @@ function formatCompact(n: number) {
   return Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 2 }).format(n)
 }
 
-// smarter formatting so small values don’t look like 0.0000
 function formatSmart(n: number) {
   if (!Number.isFinite(n)) return '0'
   const maxFrac =
@@ -52,8 +51,6 @@ export default function StakingPanel() {
 
   const { address, isConnected } = useAccount()
   const d = useStakingData()
-
-  // ✅ now includes capacityNum
   const { poolNum, fundedNum, capacityNum, fillRatio, pulse } = useRewardsPool()
 
   const nowSec = Math.floor(Date.now() / 1000)
@@ -70,11 +67,7 @@ export default function StakingPanel() {
   const weightUser = d.fmt(d.currentWeight)
 
   if (!mounted) {
-    return (
-      <div className="rounded-3xl border border-white/10 bg-black/30 p-8 text-white/70">
-        Loading staking…
-      </div>
-    )
+    return <div className="rounded-3xl border border-white/10 bg-black/30 p-8 text-white/70">Loading staking…</div>
   }
 
   return (
@@ -137,7 +130,6 @@ export default function StakingPanel() {
         <div className="rounded-3xl border border-white/10 bg-black/30 backdrop-blur-md p-8 flex flex-col items-center">
           <RewardsCore fill={fillRatio} pulse={pulse} labelTop="REWARD REACTOR" labelBottom="on-chain rewards pool" />
 
-          {/* ✅ THIS IS WHERE CAPACITY GOES */}
           <div className="mt-6 grid grid-cols-3 gap-4 w-full">
             <StatCard label="POOL" value={`${formatSmart(poolNum)} ${d.tokenSymbol}`} />
             <StatCard label="CAPACITY" value={`${formatSmart(capacityNum)} ${d.tokenSymbol}`} sub="reactor target" />
@@ -161,7 +153,6 @@ export default function StakingPanel() {
           </div>
         </div>
 
-        {/* COMMUNITY FUND */}
         <FundRewardsCard
           isConnected={isConnected}
           userAddress={address}
@@ -227,8 +218,11 @@ function FundRewardsCard({
     abi: ERC20_ABI,
     functionName: 'allowance',
     args: userAddress && tokenAddress ? [userAddress, STAKING_ADDRESS] : undefined,
-    query: { enabled: !!userAddress && !!tokenAddress },
-    watch: true,
+    query: {
+      enabled: !!userAddress && !!tokenAddress,
+      staleTime: 5_000,
+      refetchInterval: 10_000,
+    },
   })
 
   const needsApprove = !!tokenAddress && (allowance ?? 0n) < amtWei && amtWei > 0n
@@ -243,7 +237,9 @@ function FundRewardsCard({
       args: [STAKING_ADDRESS, max],
       gas: GAS.APPROVE,
     })
-    await publicClient.waitForTransactionReceipt({ hash })
+    if (publicClient) {
+      await publicClient.waitForTransactionReceipt({ hash })
+    }
   }
 
   async function fund() {
@@ -255,7 +251,9 @@ function FundRewardsCard({
       args: [amtWei],
       gas: GAS.FUND,
     })
-    await publicClient.waitForTransactionReceipt({ hash })
+    if (publicClient) {
+      await publicClient.waitForTransactionReceipt({ hash })
+    }
   }
 
   return (
@@ -270,34 +268,32 @@ function FundRewardsCard({
           Connect wallet to fund rewards.
         </div>
       ) : (
-        <>
-          <div className="mt-5 flex gap-2">
-            <input
-              value={amt}
-              onChange={(e) => setAmt(e.target.value)}
-              placeholder={`Amount (${tokenSymbol})`}
-              inputMode="decimal"
-              className="flex-1 rounded-xl bg-black/40 border border-white/10 px-4 py-3 text-white outline-none"
-            />
-            {needsApprove ? (
-              <button
-                disabled={isPending || !tokenAddress || amtWei === 0n}
-                onClick={approve}
-                className="rounded-xl bg-purple-600 px-5 py-3 font-semibold hover:bg-purple-500 disabled:opacity-50"
-              >
-                {isPending ? 'Pending…' : 'Approve'}
-              </button>
-            ) : (
-              <button
-                disabled={isPending || amtWei === 0n}
-                onClick={fund}
-                className="rounded-xl bg-purple-600 px-5 py-3 font-semibold hover:bg-purple-500 disabled:opacity-50"
-              >
-                {isPending ? 'Pending…' : 'Fund'}
-              </button>
-            )}
-          </div>
-        </>
+        <div className="mt-5 flex gap-2">
+          <input
+            value={amt}
+            onChange={(e) => setAmt(e.target.value)}
+            placeholder={`Amount (${tokenSymbol})`}
+            inputMode="decimal"
+            className="flex-1 rounded-xl bg-black/40 border border-white/10 px-4 py-3 text-white outline-none"
+          />
+          {needsApprove ? (
+            <button
+              disabled={isPending || !tokenAddress || amtWei === 0n}
+              onClick={approve}
+              className="rounded-xl bg-purple-600 px-5 py-3 font-semibold hover:bg-purple-500 disabled:opacity-50"
+            >
+              {isPending ? 'Pending…' : 'Approve'}
+            </button>
+          ) : (
+            <button
+              disabled={isPending || amtWei === 0n}
+              onClick={fund}
+              className="rounded-xl bg-purple-600 px-5 py-3 font-semibold hover:bg-purple-500 disabled:opacity-50"
+            >
+              {isPending ? 'Pending…' : 'Fund'}
+            </button>
+          )}
+        </div>
       )}
     </div>
   )

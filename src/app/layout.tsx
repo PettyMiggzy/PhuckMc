@@ -1,23 +1,29 @@
-import type { Metadata } from 'next'
-import './globals.css'
+'use client'
+
+import * as React from 'react'
+import { WagmiProvider } from 'wagmi'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit'
 import '@rainbow-me/rainbowkit/styles.css'
-import Providers from './providers'
 
-export const metadata: Metadata = {
-  title: 'PHUCKMC',
-  description: 'PHUCKMC staking',
-}
+import { wagmiConfig } from '@/lib/wagmi'
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+const queryClient = new QueryClient()
+
+export default function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body>
-        <Providers>{children}</Providers>
-      </body>
-    </html>
+    <WagmiProvider config={wagmiConfig}>
+      <QueryClientProvider client={queryClient}>
+        <RainbowKitProvider
+          theme={darkTheme({
+            accentColor: '#a855f7',
+            accentColorForeground: '#ffffff',
+            borderRadius: 'large',
+          })}
+        >
+          {children}
+        </RainbowKitProvider>
+      </QueryClientProvider>
+    </WagmiProvider>
   )
 }
