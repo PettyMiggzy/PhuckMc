@@ -30,20 +30,31 @@ export function useRewardsPool() {
     },
   })
 
-  const pool = Number(formatUnits((poolRaw ?? 0n) as bigint, d.tokenDecimals))
-  const funded = Number(formatUnits((fundedRaw ?? 0n) as bigint, d.tokenDecimals))
+  const poolNum = Number(formatUnits((poolRaw ?? 0n) as bigint, d.tokenDecimals))
+  const fundedNum = Number(formatUnits((fundedRaw ?? 0n) as bigint, d.tokenDecimals))
 
-  // baseline so small funds don’t instantly show 100%
-  const BASE_CAPACITY_TOKENS = 1000
-  const capacity = Math.max(BASE_CAPACITY_TOKENS, funded)
+  /**
+   * Reactor “capacity” tuning:
+   * - We want it to feel HARD to fill.
+   * - 10 PHUCKMC should barely move the needle.
+   *
+   * Rule:
+   * - Minimum capacity floor = 1,000,000 tokens
+   * - Otherwise capacity grows with lifetime funded * 100
+   *   (so 1% = funded/100, not pocket change)
+   */
+  const MIN_CAPACITY_TOKENS = 1_000_000
+  const capacityNum = Math.max(MIN_CAPACITY_TOKENS, fundedNum * 100)
 
-  const fillRatio = capacity <= 0 ? 0 : Math.max(0, Math.min(1, pool / capacity))
-  const pulse = pool > 0
+  const fillRatio =
+    capacityNum <= 0 ? 0 : Math.max(0, Math.min(1, poolNum / capacityNum))
+
+  const pulse = poolNum > 0
 
   return {
-    poolNum: pool,
-    fundedNum: funded,
-    capacityNum: capacity,
+    poolNum,
+    fundedNum,
+    capacityNum,
     fillRatio,
     pulse,
   }
