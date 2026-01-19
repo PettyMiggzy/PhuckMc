@@ -1,145 +1,156 @@
+// src/hooks/useStakingData.ts
 'use client'
 
 import { useMemo } from 'react'
 import { useAccount, useReadContracts } from 'wagmi'
 import { formatUnits } from 'viem'
-import { STAKING_ABI, STAKING_ADDRESS } from '@/lib/contracts'
+import {
+  STAKING_ABI,
+  STAKING_ADDRESS,
+  TOKEN_ADDRESS,
+  TOKEN_DECIMALS,
+  TOKEN_SYMBOL,
+} from '@/lib/contracts'
 
-type Address = `0x${string}`
+type Position = {
+  amount: bigint
+  startTime: bigint
+  unlockTime: bigint
+  rewardDebt: bigint
+  existsFlag: boolean
+}
+
+function safeNum(s: string) {
+  const n = Number(s)
+  return Number.isFinite(n) ? n : 0
+}
 
 export function useStakingData() {
   const { address, isConnected } = useAccount()
 
   const enabled = !!address && isConnected
-  const userArg = enabled ? ([address as Address] as const) : undefined
 
-  // NOTE: args MUST be a tuple like [address] as const
-  const stakingRead = useReadContracts({
-    contracts: [
+  const stakingContracts = useMemo(() => {
+    const user = address as `0x${string}` | undefined
+
+    return [
+      // user position
       {
         address: STAKING_ADDRESS,
         abi: STAKING_ABI,
-        functionName: 'positions',
-        args: userArg,
+        functionName: 'positionOf',
+        args: user ? [user] : undefined,
       },
+
+      // user pending rewards
       {
         address: STAKING_ADDRESS,
         abi: STAKING_ABI,
         functionName: 'pendingRewards',
-        args: userArg,
+        args: user ? [user] : undefined,
       },
+
+      // user weight
       {
         address: STAKING_ADDRESS,
         abi: STAKING_ABI,
         functionName: 'currentWeight',
-        args: userArg,
+        args: user ? [user] : undefined,
       },
+
+      // user multiplier label
       {
         address: STAKING_ADDRESS,
         abi: STAKING_ABI,
-        functionName: 'timeWeightMultiplier',
-        args: userArg,
+        functionName: 'multiplierX',
+        args: user ? [user] : undefined,
       },
-      {
-        address: STAKING_ADDRESS,
-        abi: STAKING_ABI,
-        functionName: 'TOKEN',
-      },
+
+      // globals
       {
         address: STAKING_ADDRESS,
         abi: STAKING_ABI,
         functionName: 'totalStaked',
+        args: [],
       },
       {
         address: STAKING_ADDRESS,
         abi: STAKING_ABI,
         functionName: 'totalWeight',
+        args: [],
       },
       {
         address: STAKING_ADDRESS,
         abi: STAKING_ABI,
         functionName: 'rewardsPoolBalance',
+        args: [],
       },
       {
         address: STAKING_ADDRESS,
         abi: STAKING_ABI,
         functionName: 'rewardsFundedTotal',
+        args: [],
       },
-    ] as const,
+    ] as const
+  }, [address])
+
+  const read = useReadContracts({
+    contracts: stakingContracts,
     query: {
-      enabled: true,
+      enabled,
       refetchInterval: 6000,
-      staleTime: 2000,
+      staleTime: 3000,
     },
   })
 
-  const position = useMemo(() => {
-    const r = stakingRead.data?.[0]?.result as
-      | { amount: bigint; startTime: bigint; unlockTime: bigint; rewardDebt: bigint; existsFlag: boolean }
-      | undefined
-    return (
-      r ?? {
-        amount: 0n,
-        startTime: 0n,
-        unlockTime: 0n,
-        rewardDebt: 0n,
-        existsFlag: false,
-      }
-    )
-  }, [stakingRead.data])
-
-  const pendingRewards = (stakingRead.data?.[1]?.result as bigint | undefined) ?? 0n
-  const currentWeight = (stakingRead.data?.[2]?.result as bigint | undefined) ?? 0n
-  const multiplier = (stakingRead.data?.[3]?.result as bigint | undefined) ?? 0n
-  const tokenAddress = (stakingRead.data?.[4]?.result as Address | undefined) ?? undefined
-
-  const totalStaked = (stakingRead.data?.[5]?.result as bigint | undefined) ?? 0n
-  const totalWeight = (stakingRead.data?.[6]?.result as bigint | undefined) ?? 0n
-  const rewardsPoolBalance = (stakingRead.data?.[7]?.result as bigint | undefined) ?? 0n
-  const rewardsFundedTotal = (stakingRead.data?.[8]?.result as bigint | undefined) ?? 0n
-
-  // You already set these elsewhere; keeping defaults here so UI doesn't crash
-  const tokenDecimals = 18
-  const tokenSymbol = 'PHUCKMC'
-
-  function fmt(raw: bigint, decimals = tokenDecimals) {
-    try {
-      return Number(formatUnits(raw ?? 0n, decimals))
-    } catch {
-      return 0
-    }
+  const position: Position = (read.data?.[0]?.result as any) ?? {
+    amount: 0n,
+    startTime: 0n,
+    unlockTime: 0n,
+    rewardDebt: 0n,
+    existsFlag: false,
   }
 
-  // Human-friendly multiplier string (assuming multiplier uses 1e18 scaling)
-  const multiplierX = useMemo(() => {
-    const x = Number(multiplier) / 1e18
-    if (!Number.isFinite(x) || x <= 0) return '—'
-    return `${x.toFixed(2)}x`
-  }, [multiplier])
+  const pendingRewards = (read.data?.[1]?.result as bigint) ?? 0n
+  const currentWeight = (read.data?.[2]?.result as bigint) ?? 0n
+  const multiplierX = (read.data?.[3]?.result as string) ?? '—'
+
+  const totalStaked = (read.data?.[4]?.result as bigint) ?? 0n
+  const totalWeight = (read.data?.[5]?.result as bigint) ?? 0n
+  const rewardsPoolBalance = (read.data?.[6]?.result as bigint) ?? 0n
+  const rewardsFundedTotal = (read.data?.[7]?.result as bigint) ?? 0n
+
+  // formatting helpers
+  function fmtAmount(x: bigint) {
+    return safeNum(formatUnits(x ?? 0n, TOKEN_DECIMALS))
+  }
 
   return {
-    address: address as Address | undefined,
+    // status
+    isConnected,
+    address,
     enabled,
+    isLoading: read.isLoading,
+    isFetching: read.isFetching,
 
-    // token basics (UI can override with real decimals/symbol elsewhere)
-    tokenAddress,
-    tokenDecimals,
-    tokenSymbol,
+    // token meta
+    tokenAddress: TOKEN_ADDRESS,
+    tokenDecimals: TOKEN_DECIMALS,
+    tokenSymbol: TOKEN_SYMBOL,
 
     // user
     position,
     pendingRewards,
     currentWeight,
-    multiplier,
     multiplierX,
 
-    // global
+    // globals
     totalStaked,
     totalWeight,
     rewardsPoolBalance,
     rewardsFundedTotal,
 
     // helpers
-    fmt,
+    fmtAmount,
   }
 }

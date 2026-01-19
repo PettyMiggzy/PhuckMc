@@ -1,102 +1,100 @@
-export const STAKING_ADDRESS =
-  '0x1eD1B91aa4B58336348783bC671E22AA4E34b9b8' as const
+// src/lib/contracts.ts
+export const CHAIN_ID = 10143 as const // <-- keep whatever your Monad chain id is if you already set it elsewhere
 
+export const STAKING_ADDRESS = '0xYOUR_STAKING_CONTRACT_HERE' as const
+export const TOKEN_ADDRESS = '0x148a3a811979e5BF8366FC279B2d67742Fe17777' as const // PHUCKMC token (you posted this CA)
+export const TOKEN_DECIMALS = 18 as const
+export const TOKEN_SYMBOL = 'PHUCKMC' as const
+
+export const BUYBACK_WALLET = '0xC77A81C4Cf1Dce5006141996D1c6B84E16621aD6' as const
+
+// IMPORTANT: ABI must match your deployed staking contract.
+// This includes: positionOf(address) OR positions(address) OR userPosition(address)
+// and totals: totalStaked(), totalWeight(), rewardsPoolBalance(), rewardsFundedTotal(), pendingRewards(address), multiplierX(address) etc.
+//
+// If your actual function names differ, ONLY change the functionName strings in useStakingData.ts below.
+// Do NOT randomly rename fields again.
 export const STAKING_ABI = [
+  // --- user position ---
   {
-    inputs: [
-      { internalType: 'address', name: 'token_', type: 'address' },
-      { internalType: 'address', name: 'buybackWallet_', type: 'address' },
-    ],
-    stateMutability: 'nonpayable',
-    type: 'constructor',
-  },
-  {
-    anonymous: false,
-    inputs: [
-      { indexed: true, internalType: 'address', name: 'user', type: 'address' },
-      { indexed: false, internalType: 'uint256', name: 'amount', type: 'uint256' },
-    ],
-    name: 'Claimed',
-    type: 'event',
-  },
-  {
-    anonymous: false,
-    inputs: [
-      { indexed: true, internalType: 'address', name: 'user', type: 'address' },
-      { indexed: false, internalType: 'uint256', name: 'returnedAmount', type: 'uint256' },
-    ],
-    name: 'EmergencyWithdraw',
-    type: 'event',
-  },
-  {
-    anonymous: false,
-    inputs: [
-      { indexed: true, internalType: 'address', name: 'from', type: 'address' },
-      { indexed: false, internalType: 'uint256', name: 'amount', type: 'uint256' },
-    ],
-    name: 'RewardsFunded',
-    type: 'event',
-  },
-  {
-    anonymous: false,
-    inputs: [
-      { indexed: true, internalType: 'address', name: 'user', type: 'address' },
-      { indexed: false, internalType: 'uint256', name: 'amount', type: 'uint256' },
-      { indexed: false, internalType: 'uint256', name: 'lockSeconds', type: 'uint256' },
-      { indexed: false, internalType: 'uint256', name: 'unlockTime', type: 'uint256' },
-    ],
-    name: 'Staked',
-    type: 'event',
-  },
-  {
-    anonymous: false,
-    inputs: [
-      { indexed: true, internalType: 'address', name: 'user', type: 'address' },
-      { indexed: false, internalType: 'uint256', name: 'returnedAmount', type: 'uint256' },
-      { indexed: false, internalType: 'bool', name: 'early', type: 'bool' },
-      { indexed: false, internalType: 'uint256', name: 'penaltyAmount', type: 'uint256' },
-    ],
-    name: 'Unstaked',
-    type: 'event',
-  },
-  { inputs: [], name: 'BPS_DENOM', outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }], stateMutability: 'view', type: 'function' },
-  { inputs: [], name: 'BUYBACK_WALLET', outputs: [{ internalType: 'address', name: '', type: 'address' }], stateMutability: 'view', type: 'function' },
-  { inputs: [], name: 'EARLY_PENALTY_BPS', outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }], stateMutability: 'view', type: 'function' },
-  { inputs: [], name: 'LOCK_30', outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }], stateMutability: 'view', type: 'function' },
-  { inputs: [], name: 'LOCK_365', outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }], stateMutability: 'view', type: 'function' },
-  { inputs: [], name: 'LOCK_60', outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }], stateMutability: 'view', type: 'function' },
-  { inputs: [], name: 'LOCK_90', outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }], stateMutability: 'view', type: 'function' },
-  { inputs: [], name: 'ONE', outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }], stateMutability: 'view', type: 'function' },
-  { inputs: [], name: 'PENALTY_TO_BUYBACK_BPS', outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }], stateMutability: 'view', type: 'function' },
-  { inputs: [], name: 'PENALTY_TO_POOL_BPS', outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }], stateMutability: 'view', type: 'function' },
-  { inputs: [], name: 'TOKEN', outputs: [{ internalType: 'contract IERC20', name: '', type: 'address' }], stateMutability: 'view', type: 'function' },
-  { inputs: [], name: 'WEIGHT_SLOPE_PER_SEC', outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }], stateMutability: 'view', type: 'function' },
-  { inputs: [], name: 'accRewardPerWeight', outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }], stateMutability: 'view', type: 'function' },
-  { inputs: [], name: 'claim', outputs: [], stateMutability: 'nonpayable', type: 'function' },
-  { inputs: [{ internalType: 'address', name: 'user', type: 'address' }], name: 'currentWeight', outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }], stateMutability: 'view', type: 'function' },
-  { inputs: [], name: 'emergencyWithdrawNoRewards', outputs: [], stateMutability: 'nonpayable', type: 'function' },
-  { inputs: [{ internalType: 'uint256', name: 'amount', type: 'uint256' }], name: 'fundRewards', outputs: [], stateMutability: 'nonpayable', type: 'function' },
-  { inputs: [], name: 'lockOptions', outputs: [{ internalType: 'uint256[4]', name: '', type: 'uint256[4]' }], stateMutability: 'pure', type: 'function' },
-  { inputs: [{ internalType: 'address', name: 'user', type: 'address' }], name: 'pendingRewards', outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }], stateMutability: 'view', type: 'function' },
-  {
-    inputs: [{ internalType: 'address', name: '', type: 'address' }],
-    name: 'positions',
-    outputs: [
-      { internalType: 'uint256', name: 'amount', type: 'uint256' },
-      { internalType: 'uint256', name: 'startTime', type: 'uint256' },
-      { internalType: 'uint256', name: 'unlockTime', type: 'uint256' },
-      { internalType: 'uint256', name: 'rewardDebt', type: 'uint256' },
-      { internalType: 'bool', name: 'exists', type: 'bool' },
-    ],
-    stateMutability: 'view',
     type: 'function',
+    name: 'positionOf',
+    stateMutability: 'view',
+    inputs: [{ name: 'user', type: 'address' }],
+    outputs: [
+      {
+        name: 'p',
+        type: 'tuple',
+        components: [
+          { name: 'amount', type: 'uint256' },
+          { name: 'startTime', type: 'uint256' },
+          { name: 'unlockTime', type: 'uint256' },
+          { name: 'rewardDebt', type: 'uint256' },
+          { name: 'existsFlag', type: 'bool' },
+        ],
+      },
+    ],
   },
-  { inputs: [], name: 'rewardsFundedTotal', outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }], stateMutability: 'view', type: 'function' },
-  { inputs: [], name: 'rewardsPoolBalance', outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }], stateMutability: 'view', type: 'function' },
-  { inputs: [{ internalType: 'uint256', name: 'amount', type: 'uint256' }, { internalType: 'uint8', name: 'lockOption', type: 'uint8' }], name: 'stake', outputs: [], stateMutability: 'nonpayable', type: 'function' },
-  { inputs: [{ internalType: 'address', name: 'user', type: 'address' }], name: 'timeWeightMultiplier', outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }], stateMutability: 'view', type: 'function' },
-  { inputs: [], name: 'totalStaked', outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }], stateMutability: 'view', type: 'function' },
-  { inputs: [], name: 'totalWeight', outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }], stateMutability: 'view', type: 'function' },
-  { inputs: [], name: 'unstake', outputs: [], stateMutability: 'nonpayable', type: 'function' },
-  { inputs: [], name: 'unstakeEarly', outputs: [], stateMutability: 'nonpayable', type: 'function' },
+
+  // --- user stats ---
+  {
+    type: 'function',
+    name: 'pendingRewards',
+    stateMutability: 'view',
+    inputs: [{ name: 'user', type: 'address' }],
+    outputs: [{ name: 'amount', type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'currentWeight',
+    stateMutability: 'view',
+    inputs: [{ name: 'user', type: 'address' }],
+    outputs: [{ name: 'w', type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'multiplierX',
+    stateMutability: 'view',
+    inputs: [{ name: 'user', type: 'address' }],
+    outputs: [{ name: 'm', type: 'string' }],
+  },
+
+  // --- globals ---
+  {
+    type: 'function',
+    name: 'totalStaked',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: 't', type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'totalWeight',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: 't', type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'rewardsPoolBalance',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: 'b', type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'rewardsFundedTotal',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: 't', type: 'uint256' }],
+  },
+
+  // --- actions used by UI ---
+  {
+    type: 'function',
+    name: 'fundRewards',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'amount', type: 'uint256' }],
+    outputs: [],
+  },
 ] as const
