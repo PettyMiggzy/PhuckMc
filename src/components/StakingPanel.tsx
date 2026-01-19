@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { useAccount, useReadContract, useWriteContract, usePublicClient } from 'wagmi'
-import { parseUnits } from 'viem'
+import { useAccount, useReadContract, useReadContracts, useWriteContract, usePublicClient } from 'wagmi'
+import { formatUnits, parseUnits } from 'viem'
 
 import RewardsCore from './RewardsCore'
 import StakeModal from './StakeModal'
@@ -10,6 +10,8 @@ import { useRewardsPool } from '@/hooks/useRewardsPool'
 import { useStakingData } from '@/hooks/useStakingData'
 import { STAKING_ABI, STAKING_ADDRESS } from '@/lib/contracts'
 import { GAS } from '@/lib/gas'
+
+type Address = `0x${string}`
 
 function formatCompact(n: number) {
   if (!Number.isFinite(n)) return '0'
@@ -45,127 +47,21 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub?: s
   )
 }
 
-export default function StakingPanel() {
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => setMounted(true), [])
-
-  const { address, isConnected } = useAccount()
-  const d = useStakingData()
-  const { poolNum, fundedNum, capacityNum, fillRatio, pulse } = useRewardsPool()
-
-  const nowSec = Math.floor(Date.now() / 1000)
-
-  const unlockIn = useMemo(() => {
-    if (!d.position.exists) return 0
-    return Math.max(0, Number(d.position.unlockTime) - nowSec)
-  }, [d.position.exists, d.position.unlockTime, nowSec])
-
-  const isUnlocked = d.position.exists && unlockIn === 0
-
-  const stakedUser = d.fmt(d.position.amount)
-  const pendingUser = d.fmt(d.pendingRewards)
-  const weightUser = d.fmt(d.currentWeight)
-
-  if (!mounted) {
-    return <div className="rounded-3xl border border-white/10 bg-black/30 p-8 text-white/70">Loading staking…</div>
-  }
-
-  return (
-    <div className="grid grid-cols-1 xl:grid-cols-5 gap-8">
-      {/* LEFT */}
-      <div className="xl:col-span-3 space-y-6">
-        <div className="rounded-3xl border border-white/10 bg-black/30 backdrop-blur-md p-8 shadow-[0_0_60px_rgba(168,85,247,0.12)]">
-          <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight">
-            PHUCKMC <span className="text-purple-300">Staking</span>
-          </h2>
-          <p className="mt-2 text-white/75 max-w-xl">
-            Time-weighted staking. Longer locks earn more. Early exits feed the reward pool.
-          </p>
-
-          <div className="mt-8">
-            <StakeModal tokenAddress={d.tokenAddress} tokenDecimals={d.tokenDecimals} tokenSymbol={d.tokenSymbol} />
-          </div>
-        </div>
-
-        {/* YOUR POSITION */}
-        <div className="rounded-3xl border border-white/10 bg-black/30 backdrop-blur-md p-8">
-          <div className="flex items-center justify-between">
-            <div className="text-sm tracking-[0.22em] text-white/60">YOUR POSITION</div>
-            <div
-              className={`text-xs px-3 py-1 rounded-full border ${
-                !d.position.exists
-                  ? 'border-white/10 text-white/50'
-                  : isUnlocked
-                  ? 'border-emerald-400/30 text-emerald-200 bg-emerald-500/10'
-                  : 'border-purple-400/30 text-purple-200 bg-purple-500/10'
-              }`}
-            >
-              {!d.position.exists ? 'No active stake' : isUnlocked ? 'Unlocked' : 'Locked'}
-            </div>
-          </div>
-
-          <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <StatCard label="STAKED" value={`${formatSmart(stakedUser)} ${d.tokenSymbol}`} />
-            <StatCard label="PENDING REWARDS" value={`${formatSmart(pendingUser)} ${d.tokenSymbol}`} />
-            <StatCard
-              label="UNLOCKS IN"
-              value={d.position.exists ? (isUnlocked ? '0d 0h 0m' : secondsToClock(unlockIn)) : '—'}
-            />
-          </div>
-
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <StatCard label="MULTIPLIER" value={d.position.exists ? d.multiplierX : '—'} sub="scaled correctly" />
-            <StatCard label="CURRENT WEIGHT" value={formatCompact(weightUser)} sub="drives rewards" />
-          </div>
-
-          <div className="mt-5 text-xs text-white/50">
-            Early unstake = 10% penalty, no rewards. 60% → pool, 40% → buyback.
-          </div>
-        </div>
-      </div>
-
-      {/* RIGHT */}
-      <div className="xl:col-span-2 space-y-6">
-        {/* REACTOR */}
-        <div className="rounded-3xl border border-white/10 bg-black/30 backdrop-blur-md p-8 flex flex-col items-center">
-          <RewardsCore fill={fillRatio} pulse={pulse} labelTop="REWARD REACTOR" labelBottom="on-chain rewards pool" />
-
-          <div className="mt-6 grid grid-cols-3 gap-4 w-full">
-            <StatCard label="POOL" value={`${formatSmart(poolNum)} ${d.tokenSymbol}`} />
-            <StatCard label="CAPACITY" value={`${formatSmart(capacityNum)} ${d.tokenSymbol}`} sub="reactor target" />
-            <StatCard label="FUNDED" value={`${formatSmart(fundedNum)} ${d.tokenSymbol}`} sub="lifetime" />
-          </div>
-
-          <div className="mt-3 text-xs text-white/50 text-center">
-            Funding uses <span className="text-white/80 font-semibold">{d.tokenSymbol}</span> (not MON).
-          </div>
-        </div>
-
-        {/* GLOBAL */}
-        <div className="rounded-3xl border border-white/10 bg-black/30 backdrop-blur-md p-8">
-          <div className="text-sm tracking-[0.22em] text-white/60">GLOBAL</div>
-
-          <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <StatCard label="TOTAL STAKED" value={`${formatCompact(d.fmt(d.totalStaked))} ${d.tokenSymbol}`} />
-            <StatCard label="TOTAL WEIGHT" value={formatCompact(d.fmt(d.totalWeight))} />
-            <StatCard label="REWARDS POOL" value={`${formatCompact(d.fmt(d.rewardsPoolBalance))} ${d.tokenSymbol}`} />
-            <StatCard label="FUNDED (LIFETIME)" value={`${formatCompact(d.fmt(d.rewardsFundedTotal))} ${d.tokenSymbol}`} />
-          </div>
-        </div>
-
-        <FundRewardsCard
-          isConnected={isConnected}
-          userAddress={address}
-          tokenAddress={d.tokenAddress}
-          tokenDecimals={d.tokenDecimals}
-          tokenSymbol={d.tokenSymbol}
-        />
-      </div>
-    </div>
-  )
-}
-
 const ERC20_ABI = [
+  {
+    type: 'function',
+    name: 'decimals',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'uint8' }],
+  },
+  {
+    type: 'function',
+    name: 'symbol',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'string' }],
+  },
   {
     type: 'function',
     name: 'approve',
@@ -188,23 +84,71 @@ const ERC20_ABI = [
   },
 ] as const
 
-function FundRewardsCard({
-  isConnected,
-  userAddress,
-  tokenAddress,
-  tokenDecimals,
-  tokenSymbol,
-}: {
-  isConnected: boolean
-  userAddress?: `0x${string}`
-  tokenAddress?: `0x${string}`
-  tokenDecimals: number
-  tokenSymbol: string
-}) {
+function toNum(x: bigint, decimals: number) {
+  return Number(formatUnits(x ?? 0n, decimals))
+}
+
+export default function StakingPanel() {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+
+  const { address, isConnected } = useAccount()
   const publicClient = usePublicClient()
   const { writeContractAsync, isPending } = useWriteContract()
-  const [amt, setAmt] = useState('')
 
+  const d = useStakingData()
+  const { poolNum, fundedNum, capacityNum, fillRatio, pulse } = useRewardsPool()
+
+  // Pull buyback wallet from contract (source of truth)
+  const { data: buybackWalletOnchain } = useReadContract({
+    address: STAKING_ADDRESS,
+    abi: STAKING_ABI,
+    functionName: 'BUYBACK_WALLET',
+    query: { staleTime: 60_000, refetchInterval: 60_000 },
+  })
+
+  const tokenAddress = d.tokenAddress as Address
+  const buybackWallet = (buybackWalletOnchain as Address | undefined) ?? ('0x0000000000000000000000000000000000000000' as Address)
+
+  // Token metadata
+  const { data: tokenMeta } = useReadContracts({
+    contracts: tokenAddress
+      ? [
+          { address: tokenAddress, abi: ERC20_ABI, functionName: 'decimals' },
+          { address: tokenAddress, abi: ERC20_ABI, functionName: 'symbol' },
+        ]
+      : [],
+    query: { enabled: !!tokenAddress, staleTime: 60_000, refetchInterval: 60_000 },
+  })
+
+  const tokenDecimals = Number((tokenMeta?.[0]?.result as number | undefined) ?? 18)
+  const tokenSymbol = String((tokenMeta?.[1]?.result as string | undefined) ?? 'TOKEN')
+
+  // Fix: treat stake as active if amount > 0 (exists flag can be flaky)
+  const hasStake = d.position.amount > 0n
+
+  const nowSec = Math.floor(Date.now() / 1000)
+  const unlockIn = useMemo(() => {
+    if (!hasStake) return 0
+    return Math.max(0, Number(d.position.unlockTime) - nowSec)
+  }, [hasStake, d.position.unlockTime, nowSec])
+
+  const isUnlocked = hasStake && unlockIn === 0
+
+  const stakedUserNum = toNum(d.position.amount, tokenDecimals)
+  const pendingUserNum = toNum(d.pendingRewards, tokenDecimals)
+  const weightUserRaw = d.currentWeight ?? 0n
+
+  // Display weight as “Reward Share %” only (no giant internal number)
+  const rewardSharePct = useMemo(() => {
+    if (!d.totalWeight || d.totalWeight === 0n) return 0
+    const pct = (Number(weightUserRaw) / Number(d.totalWeight)) * 100
+    if (!Number.isFinite(pct)) return 0
+    return pct
+  }, [weightUserRaw, d.totalWeight])
+
+  // FUND CARD allowance
+  const [amt, setAmt] = useState('')
   const amtWei = useMemo(() => {
     try {
       return amt ? parseUnits(amt, tokenDecimals) : 0n
@@ -217,9 +161,9 @@ function FundRewardsCard({
     address: tokenAddress,
     abi: ERC20_ABI,
     functionName: 'allowance',
-    args: userAddress && tokenAddress ? [userAddress, STAKING_ADDRESS] : undefined,
+    args: address && tokenAddress ? [address as Address, STAKING_ADDRESS] : undefined,
     query: {
-      enabled: !!userAddress && !!tokenAddress,
+      enabled: !!address && !!tokenAddress,
       staleTime: 5_000,
       refetchInterval: 10_000,
     },
@@ -237,9 +181,7 @@ function FundRewardsCard({
       args: [STAKING_ADDRESS, max],
       gas: GAS.APPROVE,
     })
-    if (publicClient) {
-      await publicClient.waitForTransactionReceipt({ hash })
-    }
+    if (publicClient) await publicClient.waitForTransactionReceipt({ hash })
   }
 
   async function fund() {
@@ -251,50 +193,144 @@ function FundRewardsCard({
       args: [amtWei],
       gas: GAS.FUND,
     })
-    if (publicClient) {
-      await publicClient.waitForTransactionReceipt({ hash })
-    }
+    if (publicClient) await publicClient.waitForTransactionReceipt({ hash })
+  }
+
+  if (!mounted) {
+    return <div className="rounded-3xl border border-white/10 bg-black/30 p-8 text-white/70">Loading staking…</div>
   }
 
   return (
-    <div className="rounded-3xl border border-white/10 bg-black/30 backdrop-blur-md p-8">
-      <div className="text-sm tracking-[0.22em] text-white/60">COMMUNITY FUND</div>
-      <div className="mt-2 text-sm text-white/75">
-        Fund with <span className="font-semibold text-white">{tokenSymbol}</span>.
+    <div className="grid grid-cols-1 xl:grid-cols-5 gap-8">
+      {/* LEFT */}
+      <div className="xl:col-span-3 space-y-6">
+        <div className="rounded-3xl border border-white/10 bg-black/30 backdrop-blur-md p-8 shadow-[0_0_60px_rgba(168,85,247,0.12)]">
+          <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight">
+            {tokenSymbol} <span className="text-purple-300">Staking</span>
+          </h2>
+          <p className="mt-2 text-white/75 max-w-xl">
+            Time-weighted staking. Longer locks earn more. Early exits feed the reward pool.
+          </p>
+
+          <div className="mt-8">
+            <StakeModal tokenAddress={tokenAddress} tokenDecimals={tokenDecimals} tokenSymbol={tokenSymbol} />
+          </div>
+
+          <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-4 text-xs text-white/65">
+            <span className="font-semibold text-white/80">Emergency withdrawal:</span> In rare, case-by-case situations,
+            the team may assist with an emergency withdrawal path that can bypass the early-unstake penalty.
+            This is <span className="font-semibold text-white/80">not guaranteed</span> and is handled manually —
+            contact the team if you believe you qualify.
+          </div>
+        </div>
+
+        {/* YOUR POSITION */}
+        <div className="rounded-3xl border border-white/10 bg-black/30 backdrop-blur-md p-8">
+          <div className="flex items-center justify-between">
+            <div className="text-sm tracking-[0.22em] text-white/60">YOUR POSITION</div>
+            <div
+              className={`text-xs px-3 py-1 rounded-full border ${
+                !hasStake
+                  ? 'border-white/10 text-white/50'
+                  : isUnlocked
+                  ? 'border-emerald-400/30 text-emerald-200 bg-emerald-500/10'
+                  : 'border-purple-400/30 text-purple-200 bg-purple-500/10'
+              }`}
+            >
+              {!hasStake ? 'No active stake' : isUnlocked ? 'Unlocked' : 'Locked'}
+            </div>
+          </div>
+
+          <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <StatCard label="STAKED" value={`${formatSmart(stakedUserNum)} ${tokenSymbol}`} />
+            <StatCard label="PENDING REWARDS" value={`${formatSmart(pendingUserNum)} ${tokenSymbol}`} />
+            <StatCard
+              label="UNLOCKS IN"
+              value={hasStake ? (isUnlocked ? '0d 0h 0m' : secondsToClock(unlockIn)) : '—'}
+            />
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <StatCard label="MULTIPLIER" value={hasStake ? `${(Number(d.multiplier ?? 0n) / 1e18).toFixed(2)}x` : '—'} sub="scaled correctly" />
+            <StatCard label="REWARD SHARE" value={`${rewardSharePct.toFixed(2)}%`} sub="your % of total weight" />
+          </div>
+
+          <div className="mt-5 text-xs text-white/50">
+            Early unstake = 10% penalty, no rewards. 60% → pool, 40% → buyback.
+          </div>
+        </div>
       </div>
 
-      {!isConnected ? (
-        <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-4 text-white/65">
-          Connect wallet to fund rewards.
+      {/* RIGHT */}
+      <div className="xl:col-span-2 space-y-6">
+        {/* REACTOR */}
+        <div className="rounded-3xl border border-white/10 bg-black/30 backdrop-blur-md p-8 flex flex-col items-center">
+          <RewardsCore fill={fillRatio} pulse={pulse} labelTop="REWARD REACTOR" labelBottom="on-chain rewards pool" />
+
+          <div className="mt-6 grid grid-cols-3 gap-4 w-full">
+            <StatCard label="POOL" value={`${formatSmart(poolNum)} ${tokenSymbol}`} />
+            <StatCard label="CAPACITY" value={`${formatSmart(capacityNum)} ${tokenSymbol}`} sub="reactor target" />
+            <StatCard label="FUNDED" value={`${formatSmart(fundedNum)} ${tokenSymbol}`} sub="lifetime" />
+          </div>
+
+          <div className="mt-3 text-xs text-white/50 text-center">
+            Funding uses <span className="text-white/80 font-semibold">{tokenSymbol}</span> (not MON).
+          </div>
         </div>
-      ) : (
-        <div className="mt-5 flex gap-2">
-          <input
-            value={amt}
-            onChange={(e) => setAmt(e.target.value)}
-            placeholder={`Amount (${tokenSymbol})`}
-            inputMode="decimal"
-            className="flex-1 rounded-xl bg-black/40 border border-white/10 px-4 py-3 text-white outline-none"
-          />
-          {needsApprove ? (
-            <button
-              disabled={isPending || !tokenAddress || amtWei === 0n}
-              onClick={approve}
-              className="rounded-xl bg-purple-600 px-5 py-3 font-semibold hover:bg-purple-500 disabled:opacity-50"
-            >
-              {isPending ? 'Pending…' : 'Approve'}
-            </button>
+
+        {/* GLOBAL (NO TOTAL WEIGHT CARD) */}
+        <div className="rounded-3xl border border-white/10 bg-black/30 backdrop-blur-md p-8">
+          <div className="text-sm tracking-[0.22em] text-white/60">GLOBAL</div>
+
+          <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <StatCard label="TOTAL STAKED" value={`${formatCompact(toNum(d.totalStaked ?? 0n, tokenDecimals))} ${tokenSymbol}`} />
+            <StatCard label="REWARDS POOL" value={`${formatCompact(toNum(d.rewardsPool ?? 0n, tokenDecimals))} ${tokenSymbol}`} />
+            <StatCard label="FUNDED (LIFETIME)" value={`${formatCompact(toNum(d.fundedLifetime ?? 0n, tokenDecimals))} ${tokenSymbol}`} />
+            <StatCard label="BUYBACK WALLET" value={`${buybackWallet?.slice(0, 6)}…${buybackWallet?.slice(-4)}`} sub="on-chain address" />
+          </div>
+        </div>
+
+        {/* COMMUNITY FUND */}
+        <div className="rounded-3xl border border-white/10 bg-black/30 backdrop-blur-md p-8">
+          <div className="text-sm tracking-[0.22em] text-white/60">COMMUNITY FUND</div>
+          <div className="mt-2 text-sm text-white/75">
+            Fund with <span className="font-semibold text-white">{tokenSymbol}</span>.
+          </div>
+
+          {!isConnected ? (
+            <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-4 text-white/65">
+              Connect wallet to fund rewards.
+            </div>
           ) : (
-            <button
-              disabled={isPending || amtWei === 0n}
-              onClick={fund}
-              className="rounded-xl bg-purple-600 px-5 py-3 font-semibold hover:bg-purple-500 disabled:opacity-50"
-            >
-              {isPending ? 'Pending…' : 'Fund'}
-            </button>
+            <div className="mt-5 flex gap-2">
+              <input
+                value={amt}
+                onChange={(e) => setAmt(e.target.value)}
+                placeholder={`Amount (${tokenSymbol})`}
+                inputMode="decimal"
+                className="flex-1 rounded-xl bg-black/40 border border-white/10 px-4 py-3 text-white outline-none"
+              />
+              {needsApprove ? (
+                <button
+                  disabled={isPending || !tokenAddress || amtWei === 0n}
+                  onClick={approve}
+                  className="rounded-xl bg-purple-600 px-5 py-3 font-semibold hover:bg-purple-500 disabled:opacity-50"
+                >
+                  {isPending ? 'Pending…' : 'Approve'}
+                </button>
+              ) : (
+                <button
+                  disabled={isPending || amtWei === 0n}
+                  onClick={fund}
+                  className="rounded-xl bg-purple-600 px-5 py-3 font-semibold hover:bg-purple-500 disabled:opacity-50"
+                >
+                  {isPending ? 'Pending…' : 'Fund'}
+                </button>
+              )}
+            </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   )
 }

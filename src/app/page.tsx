@@ -1,36 +1,97 @@
-"use client";
+'use client'
 
-import Image from "next/image";
-import Link from "next/link";
-import { useState } from "react";
+import Image from 'next/image'
+import Link from 'next/link'
+import { useMemo, useState } from 'react'
+import { useReadContract, useReadContracts } from 'wagmi'
+import { formatUnits } from 'viem'
+import { ConnectButton } from '@rainbow-me/rainbowkit'
 
-const CA = "0x148a3a811979e5BF8366FC279B2d67742Fe17777";
+import { STAKING_ABI, STAKING_ADDRESS } from '@/lib/contracts'
+
+type Address = `0x${string}`
+
+const TOKEN_CA = '0x148a3a811979e5BF8366FC279B2d67742Fe17777' as const
+
+const ERC20_ABI = [
+  { type: 'function', name: 'balanceOf', stateMutability: 'view', inputs: [{ name: 'a', type: 'address' }], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'totalSupply', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'decimals', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint8' }] },
+  { type: 'function', name: 'symbol', stateMutability: 'view', inputs: [], outputs: [{ type: 'string' }] },
+] as const
+
+function compact(n: number) {
+  if (!Number.isFinite(n)) return '—'
+  return Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 2 }).format(n)
+}
 
 export default function HomePage() {
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState(false)
 
   async function copyCA() {
     try {
-      await navigator.clipboard.writeText(CA);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1200);
+      await navigator.clipboard.writeText(TOKEN_CA)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1200)
     } catch {
-      // fallback: do nothing
+      // ignore
     }
   }
+
+  // staking contract addresses
+  const { data: buybackWallet } = useReadContract({
+    address: STAKING_ADDRESS,
+    abi: STAKING_ABI,
+    functionName: 'BUYBACK_WALLET',
+    query: { staleTime: 60_000, refetchInterval: 60_000 },
+  })
+
+  const { data: tokenFromStaking } = useReadContract({
+    address: STAKING_ADDRESS,
+    abi: STAKING_ABI,
+    functionName: 'TOKEN',
+    query: { staleTime: 60_000, refetchInterval: 60_000 },
+  })
+
+  const tokenAddr = (tokenFromStaking as Address | undefined) ?? (TOKEN_CA as Address)
+  const buyback = (buybackWallet as Address | undefined) ?? ('0x0000000000000000000000000000000000000000' as Address)
+
+  // read core stats
+  const { data: core } = useReadContracts({
+    contracts: [
+      { address: STAKING_ADDRESS, abi: STAKING_ABI, functionName: 'totalStaked' },
+      { address: STAKING_ADDRESS, abi: STAKING_ABI, functionName: 'rewardsFundedTotal' },
+      { address: tokenAddr, abi: ERC20_ABI, functionName: 'totalSupply' },
+      { address: tokenAddr, abi: ERC20_ABI, functionName: 'decimals' },
+      { address: tokenAddr, abi: ERC20_ABI, functionName: 'symbol' },
+      { address: tokenAddr, abi: ERC20_ABI, functionName: 'balanceOf', args: [buyback] },
+    ],
+    query: { enabled: !!tokenAddr, staleTime: 15_000, refetchInterval: 15_000 },
+  })
+
+  const totalStaked = (core?.[0]?.result as bigint | undefined) ?? 0n
+  const rewardsPaid = (core?.[1]?.result as bigint | undefined) ?? 0n
+  const totalSupply = (core?.[2]?.result as bigint | undefined) ?? 0n
+  const decimals = Number((core?.[3]?.result as number | undefined) ?? 18)
+  const symbol = String((core?.[4]?.result as string | undefined) ?? 'PHUCKMC')
+  const buybackBal = (core?.[5]?.result as bigint | undefined) ?? 0n
+
+  const totalStakedNum = Number(formatUnits(totalStaked, decimals))
+  const rewardsPaidNum = Number(formatUnits(rewardsPaid, decimals))
+  const buybackBalNum = Number(formatUnits(buybackBal, decimals))
+
+  const supplyLockedPct = useMemo(() => {
+    if (!totalSupply || totalSupply === 0n) return 0
+    const pct = (Number(totalStaked) / Number(totalSupply)) * 100
+    if (!Number.isFinite(pct)) return 0
+    return pct
+  }, [totalStaked, totalSupply])
 
   return (
     <main className="relative min-h-screen overflow-hidden text-white">
       {/* BG */}
       <div className="absolute inset-0 -z-10">
-        <Image
-          src="/hero.png"
-          alt="PHUCKMC hero"
-          fill
-          priority
-          sizes="100vw"
-          style={{ objectFit: "cover" }}
-        />
+        <Image src="/hero.png" alt="PHUCKMC hero" fill priority sizes="100vw" style={{ objectFit: 'cover' }} />
         <div className="absolute inset-0 bg-black/55" />
         <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/25 to-black/60" />
       </div>
@@ -49,32 +110,20 @@ export default function HomePage() {
           </div>
 
           <nav className="flex items-center gap-2">
-            <Link
-              href="/"
-              className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
-            >
+            <Link href="/" className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm hover:bg-white/10">
               PHUCK
             </Link>
-            <Link
-              href="/swap"
-              className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
-            >
+            <Link href="/swap" className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm hover:bg-white/10">
               Swap
             </Link>
-            <Link
-              href="/staking"
-              className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
-            >
+            <Link href="/staking" className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm hover:bg-white/10">
               Staking
             </Link>
-            <a
-              href="https://t.me/"
-              target="_blank"
-              className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
-              rel="noreferrer"
-            >
-              Telegram
-            </a>
+
+            {/* ✅ WALLET CONNECT */}
+            <div className="ml-2">
+              <ConnectButton />
+            </div>
           </nav>
         </div>
       </header>
@@ -94,7 +143,7 @@ export default function HomePage() {
 
             <div className="mt-7 flex flex-wrap gap-3">
               <a
-                href={`https://nad.fun/tokens/${CA}`}
+                href={`https://nad.fun/tokens/${TOKEN_CA}`}
                 target="_blank"
                 rel="noreferrer"
                 className="rounded-xl bg-purple-600 px-6 py-3 font-semibold text-white shadow-[0_0_30px_rgba(168,85,247,0.25)] hover:bg-purple-500"
@@ -115,14 +164,12 @@ export default function HomePage() {
             <div className="mt-8 rounded-2xl border border-white/10 bg-black/35 backdrop-blur-md p-4">
               <div className="text-xs tracking-widest text-white/60">CONTRACT</div>
               <div className="mt-2 flex items-center justify-between gap-3">
-                <code className="text-sm md:text-base text-white/90 break-all">
-                  {CA}
-                </code>
+                <code className="text-sm md:text-base text-white/90 break-all">{TOKEN_CA}</code>
                 <button
                   onClick={copyCA}
                   className="shrink-0 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm hover:bg-white/10"
                 >
-                  {copied ? "Copied" : "Copy"}
+                  {copied ? 'Copied' : 'Copy'}
                 </button>
               </div>
             </div>
@@ -132,70 +179,34 @@ export default function HomePage() {
           <div className="rounded-3xl border border-white/10 bg-black/25 backdrop-blur-md p-6">
             <div className="text-sm tracking-widest text-white/70">PROJECT PULSE</div>
 
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="rounded-2xl border border-white/10 bg-black/30 p-5">
-                <div className="font-semibold">LIVE SOON</div>
-                <div className="mt-2 text-sm text-white/75">
-                  We’re wiring the on-chain stats.
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-black/30 p-5">
-                <div className="font-semibold">PHUCK SWAP</div>
-                <div className="mt-2 text-sm text-white/75">
-                  fees → buyback + rewards
-                  <br />
-                  Make the meme fund itself.
-                </div>
-                <Link
-                  href="/swap"
-                  className="mt-4 inline-flex rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold hover:bg-white/10"
-                >
-                  Open Swap
-                </Link>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-black/30 p-5">
-                <div className="font-semibold">STAKING</div>
-                <div className="mt-2 text-sm text-white/75">
-                  lock in • chill out
-                  <br />
-                  Earn while you ignore the noise.
-                </div>
-                <Link
-                  href="/staking"
-                  className="mt-4 inline-flex rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold hover:bg-white/10"
-                >
-                  Open Staking
-                </Link>
-              </div>
-            </div>
-
             <div className="mt-6 border-t border-white/10 pt-4 text-center text-sm text-white/70">
               NO PRESSURE. JUST PRESENCE.
-              <div className="mt-1 text-xs text-white/50">
-                PHUCKMC runs. You hold. Rewards flow.
-              </div>
+              <div className="mt-1 text-xs text-white/50">{symbol} runs. You hold. Rewards flow.</div>
             </div>
 
-            {/* bottom stats placeholders */}
+            {/* bottom stats (REAL) */}
             <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="rounded-xl border border-white/10 bg-black/25 p-3 text-center">
-                <div className="text-xs tracking-widest text-white/60">CURRENT TREASURY</div>
-                <div className="mt-1 font-semibold">124.5K MON</div>
+                <div className="text-xs tracking-widest text-white/60">BUYBACK WALLET</div>
+                <div className="mt-1 font-semibold">{compact(buybackBalNum)} {symbol}</div>
               </div>
               <div className="rounded-xl border border-white/10 bg-black/25 p-3 text-center">
                 <div className="text-xs tracking-widest text-white/60">TOTAL REWARDS PAID</div>
-                <div className="mt-1 font-semibold">1.2M MON</div>
+                <div className="mt-1 font-semibold">{compact(rewardsPaidNum)} {symbol}</div>
               </div>
               <div className="rounded-xl border border-white/10 bg-black/25 p-3 text-center">
                 <div className="text-xs tracking-widest text-white/60">SUPPLY LOCKED</div>
-                <div className="mt-1 font-semibold">42%</div>
+                <div className="mt-1 font-semibold">{supplyLockedPct.toFixed(2)}%</div>
               </div>
+            </div>
+
+            <div className="mt-3 text-center text-[11px] text-white/45">
+              “Buyback wallet” reflects the token balance of the on-chain buyback address. “Total rewards paid” reflects lifetime funded rewards from the staking contract.
+              “Supply locked” is total staked / total supply.
             </div>
           </div>
         </div>
       </section>
     </main>
-  );
+  )
 }
