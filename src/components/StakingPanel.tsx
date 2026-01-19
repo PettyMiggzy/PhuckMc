@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useAccount, useReadContract, useWriteContract, usePublicClient } from 'wagmi'
-import { parseUnits } from 'viem'
+import { formatUnits, parseUnits } from 'viem'
 
 import RewardsCore from './RewardsCore'
 import StakeModal from './StakeModal'
 import { useRewardsPool } from '@/hooks/useRewardsPool'
 import { useStakingData } from '@/hooks/useStakingData'
-import { STAKING_ABI, STAKING_ADDRESS, BUYBACK_WALLET } from '@/lib/contracts'
+import { ERC20_ABI, STAKING_ABI, STAKING_ADDRESS } from '@/lib/contracts'
 import { GAS } from '@/lib/gas'
 
 function formatCompact(n: number) {
@@ -35,6 +35,21 @@ function secondsToClock(sec: number) {
   return `${d}d ${h}h ${m}m`
 }
 
+function toNum(x: bigint | undefined, decimals: number) {
+  try {
+    return Number(formatUnits(x ?? 0n, decimals))
+  } catch {
+    return 0
+  }
+}
+
+function calcSharePct(userWeight: bigint, totalWeight: bigint) {
+  if (totalWeight <= 0n) return 0
+  // basis points, then /100
+  const bps = (userWeight * 10000n) / totalWeight
+  return Number(bps) / 100
+}
+
 function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-black/30 backdrop-blur-md p-4">
@@ -45,13 +60,6 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub?: s
   )
 }
 
-function calcSharePct(userWeight: bigint, totalWeight: bigint) {
-  if (!totalWeight || totalWeight <= 0n) return 0
-  // cap at 100 to avoid weird display if chain returns stale totals for a second
-  const pct = Number((userWeight * 10000n) / totalWeight) / 100
-  return Math.max(0, Math.min(100, pct))
-}
-
 export default function StakingPanel() {
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
@@ -60,18 +68,21 @@ export default function StakingPanel() {
   const d = useStakingData()
   const { poolNum, fundedNum, capacityNum, fillRatio, pulse } = useRewardsPool()
 
+  const tokenDecimals = d.tokenDecimals ?? 18
+  const tokenSymbol = d.tokenSymbol ?? 'PHUCKMC'
+
   const nowSec = Math.floor(Date.now() / 1000)
 
   const unlockIn = useMemo(() => {
-    if (!d.position.existsFlag) return 0
+    if (!d.hasStake) return 0
     return Math.max(0, Number(d.position.unlockTime) - nowSec)
-  }, [d.position.existsFlag, d.position.unlockTime, nowSec])
+  }, [d.hasStake, d.position.unlockTime, nowSec])
 
-  const isUnlocked = d.position.existsFlag && unlockIn === 0
+  const isUnlocked = d.hasStake && unlockIn === 0
 
-  const stakedUser = d.fmtAmount(d.position.amount)
-  const pendingUser = d.fmtAmount(d.pendingRewards)
-  const userSharePct = calcSharePct(d.currentWeight, d.totalWeight)
+  const stakedUser = toNum(d.position.amount, tokenDecimals)
+  const pendingUser = toNum(d.pendingRewards, tokenDecimals)
+  const rewardSharePct = calcSharePct(d.currentWeight, d.totalWeight)
 
   if (!mounted) {
     return <div className="rounded-3xl border border-white/10 bg-black/30 p-8 text-white/70">Loading staking…</div>
@@ -83,14 +94,14 @@ export default function StakingPanel() {
       <div className="xl:col-span-3 space-y-6">
         <div className="rounded-3xl border border-white/10 bg-black/30 backdrop-blur-md p-8 shadow-[0_0_60px_rgba(168,85,247,0.12)]">
           <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight">
-            PHUCKMC <span className="text-purple-300">Staking</span>
+            {tokenSymbol} <span className="text-purple-300">Staking</span>
           </h2>
           <p className="mt-2 text-white/75 max-w-xl">
             Time-weighted staking. Longer locks earn more. Early exits feed the reward pool.
           </p>
 
           <div className="mt-8">
-            <StakeModal tokenAddress={d.tokenAddress} tokenDecimals={d.tokenDecimals} tokenSymbol={d.tokenSymbol} />
+            <StakeModal tokenAddress={d.tokenAddress} tokenDecimals={tokenDecimals} tokenSymbol={tokenSymbol} />
           </div>
         </div>
 
@@ -100,40 +111,49 @@ export default function StakingPanel() {
             <div className="text-sm tracking-[0.22em] text-white/60">YOUR POSITION</div>
             <div
               className={`text-xs px-3 py-1 rounded-full border ${
-                !d.position.existsFlag
+                !d.hasStake
                   ? 'border-white/10 text-white/50'
                   : isUnlocked
                   ? 'border-emerald-400/30 text-emerald-200 bg-emerald-500/10'
                   : 'border-purple-400/30 text-purple-200 bg-purple-500/10'
               }`}
             >
-              {!d.position.existsFlag ? 'No active stake' : isUnlocked ? 'Unlocked' : 'Locked'}
+              {!d.hasStake ? 'No active stake' : isUnlocked ? 'Unlocked' : 'Locked'}
             </div>
           </div>
 
           <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <StatCard label="STAKED" value={`${formatSmart(stakedUser)} ${d.tokenSymbol}`} />
-            <StatCard label="PENDING REWARDS" value={d.position.existsFlag ? `${formatSmart(pendingUser)} ${d.tokenSymbol}` : '—'} />
+            <StatCard label="STAKED" value={`${formatSmart(stakedUser)} ${tokenSymbol}`} />
+            <StatCard label="PENDING REWARDS" value={`${formatSmart(pendingUser)} ${tokenSymbol}`} />
             <StatCard
               label="UNLOCKS IN"
-              value={d.position.existsFlag ? (isUnlocked ? '0d 0h 0m' : secondsToClock(unlockIn)) : '—'}
+              value={d.hasStake ? (isUnlocked ? '0d 0h 0m' : secondsToClock(unlockIn)) : '—'}
             />
           </div>
 
           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <StatCard label="REWARD SHARE" value={d.position.existsFlag ? `${userSharePct.toFixed(2)}%` : '—'} sub="your share of total weight" />
-            <StatCard label="MULTIPLIER" value={d.position.existsFlag ? d.multiplierX : '—'} sub="based on lock duration" />
+            <StatCard
+              label="REWARD SHARE"
+              value={d.hasStake ? `${rewardSharePct.toFixed(2)}%` : '—'}
+              sub="your share of total weight"
+            />
+            <StatCard
+              label="MULTIPLIER"
+              value={d.hasStake ? `${toNum(d.multiplier, 18).toFixed(2)}x` : '—'}
+              sub="based on lock duration"
+            />
           </div>
 
           <div className="mt-5 text-xs text-white/50">
             Early unstake = 10% penalty, no rewards. 60% → pool, 40% → buyback.
           </div>
 
-          <div className="mt-5 rounded-2xl border border-white/10 bg-black/25 p-4 text-sm text-white/70 leading-relaxed">
-            <span className="font-semibold text-white/85">Transparency note:</span>{' '}
-            This staking contract includes an <span className="font-semibold">emergency withdrawal</span> path that can withdraw
-            without rewards and may bypass early-unstake penalties in rare, case-by-case situations. It is <span className="font-semibold">not guaranteed</span> and
-            is handled manually — contact the team if you believe you qualify.
+          {/* TRANSPARENCY DISCLAIMER (you asked for this) */}
+          <div className="mt-5 rounded-2xl border border-white/10 bg-black/25 p-4 text-sm text-white/75">
+            <span className="font-semibold text-white">Transparency note:</span>{' '}
+            This staking contract includes an <span className="font-semibold">emergency withdrawal</span> path that may allow
+            withdrawal <span className="font-semibold">without rewards</span> and can be handled case-by-case. This is{' '}
+            <span className="font-semibold">not guaranteed</span> and is processed manually — contact the team if you believe you qualify.
           </div>
         </div>
       </div>
@@ -145,13 +165,13 @@ export default function StakingPanel() {
           <RewardsCore fill={fillRatio} pulse={pulse} labelTop="REWARD REACTOR" labelBottom="on-chain rewards pool" />
 
           <div className="mt-6 grid grid-cols-3 gap-4 w-full">
-            <StatCard label="POOL" value={`${formatSmart(poolNum)} ${d.tokenSymbol}`} />
-            <StatCard label="CAPACITY" value={`${formatSmart(capacityNum)} ${d.tokenSymbol}`} sub="reactor target" />
-            <StatCard label="FUNDED" value={`${formatSmart(fundedNum)} ${d.tokenSymbol}`} sub="lifetime" />
+            <StatCard label="POOL" value={`${formatSmart(poolNum)} ${tokenSymbol}`} />
+            <StatCard label="CAPACITY" value={`${formatSmart(capacityNum)} ${tokenSymbol}`} sub="reactor target" />
+            <StatCard label="FUNDED" value={`${formatSmart(fundedNum)} ${tokenSymbol}`} sub="lifetime" />
           </div>
 
           <div className="mt-3 text-xs text-white/50 text-center">
-            Funding uses <span className="text-white/80 font-semibold">{d.tokenSymbol}</span> (not MON).
+            Funding uses <span className="text-white/80 font-semibold">{tokenSymbol}</span> (not MON).
           </div>
         </div>
 
@@ -160,47 +180,38 @@ export default function StakingPanel() {
           <div className="text-sm tracking-[0.22em] text-white/60">GLOBAL</div>
 
           <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <StatCard label="TOTAL STAKED" value={`${formatCompact(d.fmtAmount(d.totalStaked))} ${d.tokenSymbol}`} />
-            <StatCard label="REWARDS POOL" value={`${formatCompact(d.fmtAmount(d.rewardsPoolBalance))} ${d.tokenSymbol}`} />
-            <StatCard label="FUNDED (LIFETIME)" value={`${formatCompact(d.fmtAmount(d.rewardsFundedTotal))} ${d.tokenSymbol}`} />
-            <StatCard label="BUYBACK WALLET" value={`${BUYBACK_WALLET.slice(0, 6)}…${BUYBACK_WALLET.slice(-4)}`} sub="on-chain address" />
+            <StatCard
+              label="TOTAL STAKED"
+              value={`${formatCompact(toNum(d.totalStaked, tokenDecimals))} ${tokenSymbol}`}
+            />
+            {/* REMOVED THE GIANT TOTAL WEIGHT CARD ON PURPOSE */}
+            <StatCard
+              label="REWARDS POOL"
+              value={`${formatCompact(toNum(d.rewardsPoolBalance, tokenDecimals))} ${tokenSymbol}`}
+            />
+            <StatCard
+              label="FUNDED (LIFETIME)"
+              value={`${formatCompact(toNum(d.rewardsFundedTotal, tokenDecimals))} ${tokenSymbol}`}
+            />
+            <StatCard
+              label="BUYBACK WALLET"
+              value={`${d.buybackWallet?.slice(0, 6)}…${d.buybackWallet?.slice(-4)}`}
+              sub="on-chain address"
+            />
           </div>
         </div>
 
         <FundRewardsCard
           isConnected={isConnected}
-          userAddress={address}
+          userAddress={address as `0x${string}` | undefined}
           tokenAddress={d.tokenAddress}
-          tokenDecimals={d.tokenDecimals}
-          tokenSymbol={d.tokenSymbol}
+          tokenDecimals={tokenDecimals}
+          tokenSymbol={tokenSymbol}
         />
       </div>
     </div>
   )
 }
-
-const ERC20_ABI = [
-  {
-    type: 'function',
-    name: 'approve',
-    stateMutability: 'nonpayable',
-    inputs: [
-      { name: 'spender', type: 'address' },
-      { name: 'amount', type: 'uint256' },
-    ],
-    outputs: [{ type: 'bool' }],
-  },
-  {
-    type: 'function',
-    name: 'allowance',
-    stateMutability: 'view',
-    inputs: [
-      { name: 'owner', type: 'address' },
-      { name: 'spender', type: 'address' },
-    ],
-    outputs: [{ type: 'uint256' }],
-  },
-] as const
 
 function FundRewardsCard({
   isConnected,
@@ -229,7 +240,18 @@ function FundRewardsCard({
 
   const { data: allowance } = useReadContract({
     address: tokenAddress,
-    abi: ERC20_ABI,
+    abi: [
+      {
+        type: 'function',
+        name: 'allowance',
+        stateMutability: 'view',
+        inputs: [
+          { name: 'owner', type: 'address' },
+          { name: 'spender', type: 'address' },
+        ],
+        outputs: [{ type: 'uint256' }],
+      },
+    ] as const,
     functionName: 'allowance',
     args: userAddress && tokenAddress ? [userAddress, STAKING_ADDRESS] : undefined,
     query: {
@@ -246,7 +268,18 @@ function FundRewardsCard({
     const max = 2n ** 256n - 1n
     const hash = await writeContractAsync({
       address: tokenAddress,
-      abi: ERC20_ABI,
+      abi: [
+        {
+          type: 'function',
+          name: 'approve',
+          stateMutability: 'nonpayable',
+          inputs: [
+            { name: 'spender', type: 'address' },
+            { name: 'amount', type: 'uint256' },
+          ],
+          outputs: [{ type: 'bool' }],
+        },
+      ] as const,
       functionName: 'approve',
       args: [STAKING_ADDRESS, max],
       gas: GAS.APPROVE,

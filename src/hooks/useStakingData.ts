@@ -1,156 +1,153 @@
-// src/hooks/useStakingData.ts
 'use client'
 
 import { useMemo } from 'react'
 import { useAccount, useReadContracts } from 'wagmi'
-import { formatUnits } from 'viem'
-import {
-  STAKING_ABI,
-  STAKING_ADDRESS,
-  TOKEN_ADDRESS,
-  TOKEN_DECIMALS,
-  TOKEN_SYMBOL,
-} from '@/lib/contracts'
+import { ERC20_ABI, STAKING_ABI, STAKING_ADDRESS, TOKEN_ADDRESS } from '@/lib/contracts'
 
-type Position = {
-  amount: bigint
-  startTime: bigint
-  unlockTime: bigint
-  rewardDebt: bigint
-  existsFlag: boolean
-}
-
-function safeNum(s: string) {
-  const n = Number(s)
-  return Number.isFinite(n) ? n : 0
-}
+type Address = `0x${string}`
 
 export function useStakingData() {
   const { address, isConnected } = useAccount()
+  const enabled = isConnected && !!address
 
-  const enabled = !!address && isConnected
+  const a = (address as Address | undefined) ?? undefined
 
-  const stakingContracts = useMemo(() => {
-    const user = address as `0x${string}` | undefined
-
+  const contracts = useMemo(() => {
     return [
-      // user position
+      // --- user reads
       {
-        address: STAKING_ADDRESS,
+        address: STAKING_ADDRESS as Address,
         abi: STAKING_ABI,
-        functionName: 'positionOf',
-        args: user ? [user] : undefined,
+        functionName: 'positions',
+        args: a ? ([a] as const) : undefined,
       },
-
-      // user pending rewards
       {
-        address: STAKING_ADDRESS,
+        address: STAKING_ADDRESS as Address,
         abi: STAKING_ABI,
         functionName: 'pendingRewards',
-        args: user ? [user] : undefined,
+        args: a ? ([a] as const) : undefined,
       },
-
-      // user weight
       {
-        address: STAKING_ADDRESS,
+        address: STAKING_ADDRESS as Address,
         abi: STAKING_ABI,
         functionName: 'currentWeight',
-        args: user ? [user] : undefined,
+        args: a ? ([a] as const) : undefined,
       },
-
-      // user multiplier label
       {
-        address: STAKING_ADDRESS,
+        address: STAKING_ADDRESS as Address,
         abi: STAKING_ABI,
-        functionName: 'multiplierX',
-        args: user ? [user] : undefined,
+        functionName: 'timeWeightMultiplier',
+        args: a ? ([a] as const) : undefined,
       },
 
-      // globals
+      // --- globals
       {
-        address: STAKING_ADDRESS,
+        address: STAKING_ADDRESS as Address,
         abi: STAKING_ABI,
         functionName: 'totalStaked',
-        args: [],
       },
       {
-        address: STAKING_ADDRESS,
+        address: STAKING_ADDRESS as Address,
         abi: STAKING_ABI,
         functionName: 'totalWeight',
-        args: [],
       },
       {
-        address: STAKING_ADDRESS,
+        address: STAKING_ADDRESS as Address,
         abi: STAKING_ABI,
         functionName: 'rewardsPoolBalance',
-        args: [],
       },
       {
-        address: STAKING_ADDRESS,
+        address: STAKING_ADDRESS as Address,
         abi: STAKING_ABI,
         functionName: 'rewardsFundedTotal',
-        args: [],
+      },
+      {
+        address: STAKING_ADDRESS as Address,
+        abi: STAKING_ABI,
+        functionName: 'TOKEN',
+      },
+      {
+        address: STAKING_ADDRESS as Address,
+        abi: STAKING_ABI,
+        functionName: 'BUYBACK_WALLET',
+      },
+
+      // --- token meta (fallback to TOKEN_ADDRESS)
+      {
+        address: (TOKEN_ADDRESS as Address),
+        abi: ERC20_ABI,
+        functionName: 'decimals',
+      },
+      {
+        address: (TOKEN_ADDRESS as Address),
+        abi: ERC20_ABI,
+        functionName: 'symbol',
       },
     ] as const
-  }, [address])
+  }, [a])
 
-  const read = useReadContracts({
-    contracts: stakingContracts,
+  const { data, isLoading, refetch, isFetching } = useReadContracts({
+    contracts,
     query: {
       enabled,
       refetchInterval: 6000,
-      staleTime: 3000,
+      staleTime: 0,
+      gcTime: 0,
     },
   })
 
-  const position: Position = (read.data?.[0]?.result as any) ?? {
-    amount: 0n,
-    startTime: 0n,
-    unlockTime: 0n,
-    rewardDebt: 0n,
-    existsFlag: false,
+  const positionRaw = (data?.[0]?.result ??
+    [0n, 0n, 0n, 0n, false]) as readonly [bigint, bigint, bigint, bigint, boolean]
+
+  const position = {
+    amount: positionRaw[0],
+    startTime: positionRaw[1],
+    unlockTime: positionRaw[2],
+    rewardDebt: positionRaw[3],
+    exists: positionRaw[4],
   }
 
-  const pendingRewards = (read.data?.[1]?.result as bigint) ?? 0n
-  const currentWeight = (read.data?.[2]?.result as bigint) ?? 0n
-  const multiplierX = (read.data?.[3]?.result as string) ?? '—'
+  // Treat stake as active if amount > 0 (exists can lie depending on older structs)
+  const hasStake = position.amount > 0n
 
-  const totalStaked = (read.data?.[4]?.result as bigint) ?? 0n
-  const totalWeight = (read.data?.[5]?.result as bigint) ?? 0n
-  const rewardsPoolBalance = (read.data?.[6]?.result as bigint) ?? 0n
-  const rewardsFundedTotal = (read.data?.[7]?.result as bigint) ?? 0n
+  const pendingRewards = (data?.[1]?.result ?? 0n) as bigint
+  const currentWeight = (data?.[2]?.result ?? 0n) as bigint
+  const multiplier = (data?.[3]?.result ?? 0n) as bigint
 
-  // formatting helpers
-  function fmtAmount(x: bigint) {
-    return safeNum(formatUnits(x ?? 0n, TOKEN_DECIMALS))
-  }
+  const totalStaked = (data?.[4]?.result ?? 0n) as bigint
+  const totalWeight = (data?.[5]?.result ?? 0n) as bigint
+  const rewardsPoolBalance = (data?.[6]?.result ?? 0n) as bigint
+  const rewardsFundedTotal = (data?.[7]?.result ?? 0n) as bigint
+
+  const tokenFromStaking = (data?.[8]?.result ?? TOKEN_ADDRESS) as Address
+  const buybackWallet = (data?.[9]?.result ?? ('0x0000000000000000000000000000000000000000' as Address)) as Address
+
+  const tokenDecimals = Number((data?.[10]?.result ?? 18) as number)
+  const tokenSymbol = String((data?.[11]?.result ?? 'PHUCKMC'))
 
   return {
-    // status
-    isConnected,
     address,
     enabled,
-    isLoading: read.isLoading,
-    isFetching: read.isFetching,
+    isLoading,
+    isFetching,
+    refetch,
 
-    // token meta
-    tokenAddress: TOKEN_ADDRESS,
-    tokenDecimals: TOKEN_DECIMALS,
-    tokenSymbol: TOKEN_SYMBOL,
-
-    // user
     position,
+    hasStake,
+
     pendingRewards,
     currentWeight,
-    multiplierX,
+    multiplier,
 
-    // globals
     totalStaked,
     totalWeight,
     rewardsPoolBalance,
     rewardsFundedTotal,
 
-    // helpers
-    fmtAmount,
+    tokenAddress: tokenFromStaking,
+    tokenDecimals,
+    tokenSymbol,
+
+    buybackWallet,
   }
 }
