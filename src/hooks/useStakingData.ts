@@ -7,150 +7,139 @@ import { STAKING_ABI, STAKING_ADDRESS } from '@/lib/contracts'
 
 type Address = `0x${string}`
 
-const ERC20_META_ABI = [
-  {
-    type: 'function',
-    name: 'decimals',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ type: 'uint8' }],
-  },
-  {
-    type: 'function',
-    name: 'symbol',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ type: 'string' }],
-  },
-] as const
-
-function safeAddr(a?: string | null): Address | undefined {
-  if (!a) return undefined
-  return a as Address
-}
-
-function fmtMultiplierX(mult: bigint) {
-  // Most staking contracts return multiplier scaled by 1e18 (1x = 1e18)
-  // If yours is different, this will still show something reasonable.
-  const x = Number(formatUnits(mult ?? 0n, 18))
-  if (!Number.isFinite(x) || x <= 0) return '—'
-  return `${x.toFixed(2)}x`
-}
-
 export function useStakingData() {
   const { address, isConnected } = useAccount()
-  const a = safeAddr(address)
 
-  const enabled = isConnected && !!a
+  const enabled = !!address && isConnected
+  const userArg = enabled ? ([address as Address] as const) : undefined
 
-  // Batch read staking core first
-  const stakingContracts = useMemo(() => {
-    return [
-      // user
-      { address: STAKING_ADDRESS as Address, abi: STAKING_ABI, functionName: 'positions', args: a ? [a] : undefined },
-      { address: STAKING_ADDRESS as Address, abi: STAKING_ABI, functionName: 'pendingRewards', args: a ? [a] : undefined },
-      { address: STAKING_ADDRESS as Address, abi: STAKING_ABI, functionName: 'currentWeight', args: a ? [a] : undefined },
-      { address: STAKING_ADDRESS as Address, abi: STAKING_ABI, functionName: 'timeWeightMultiplier', args: a ? [a] : undefined },
-
-      // globals
-      { address: STAKING_ADDRESS as Address, abi: STAKING_ABI, functionName: 'totalStaked' },
-      { address: STAKING_ADDRESS as Address, abi: STAKING_ABI, functionName: 'totalWeight' },
-      { address: STAKING_ADDRESS as Address, abi: STAKING_ABI, functionName: 'rewardsPoolBalance' },
-      { address: STAKING_ADDRESS as Address, abi: STAKING_ABI, functionName: 'rewardsFundedTotal' },
-
-      // token address
-      { address: STAKING_ADDRESS as Address, abi: STAKING_ABI, functionName: 'TOKEN' },
-    ] as const
-  }, [a])
-
+  // NOTE: args MUST be a tuple like [address] as const
   const stakingRead = useReadContracts({
-    contracts: stakingContracts,
+    contracts: [
+      {
+        address: STAKING_ADDRESS,
+        abi: STAKING_ABI,
+        functionName: 'positions',
+        args: userArg,
+      },
+      {
+        address: STAKING_ADDRESS,
+        abi: STAKING_ABI,
+        functionName: 'pendingRewards',
+        args: userArg,
+      },
+      {
+        address: STAKING_ADDRESS,
+        abi: STAKING_ABI,
+        functionName: 'currentWeight',
+        args: userArg,
+      },
+      {
+        address: STAKING_ADDRESS,
+        abi: STAKING_ABI,
+        functionName: 'timeWeightMultiplier',
+        args: userArg,
+      },
+      {
+        address: STAKING_ADDRESS,
+        abi: STAKING_ABI,
+        functionName: 'TOKEN',
+      },
+      {
+        address: STAKING_ADDRESS,
+        abi: STAKING_ABI,
+        functionName: 'totalStaked',
+      },
+      {
+        address: STAKING_ADDRESS,
+        abi: STAKING_ABI,
+        functionName: 'totalWeight',
+      },
+      {
+        address: STAKING_ADDRESS,
+        abi: STAKING_ABI,
+        functionName: 'rewardsPoolBalance',
+      },
+      {
+        address: STAKING_ADDRESS,
+        abi: STAKING_ABI,
+        functionName: 'rewardsFundedTotal',
+      },
+    ] as const,
     query: {
-      enabled,
+      enabled: true,
       refetchInterval: 6000,
-      staleTime: 0,
-      gcTime: 0,
+      staleTime: 2000,
     },
   })
 
-  const tokenAddress = (stakingRead.data?.[8]?.result ??
-    ('0x0000000000000000000000000000000000000000' as Address)) as Address
+  const position = useMemo(() => {
+    const r = stakingRead.data?.[0]?.result as
+      | { amount: bigint; startTime: bigint; unlockTime: bigint; rewardDebt: bigint; existsFlag: boolean }
+      | undefined
+    return (
+      r ?? {
+        amount: 0n,
+        startTime: 0n,
+        unlockTime: 0n,
+        rewardDebt: 0n,
+        existsFlag: false,
+      }
+    )
+  }, [stakingRead.data])
 
-  // Now read token meta (symbol/decimals)
-  const tokenMetaContracts = useMemo(() => {
-    const isZero = tokenAddress === ('0x0000000000000000000000000000000000000000' as Address)
-    if (isZero) return [] as const
-    return [
-      { address: tokenAddress, abi: ERC20_META_ABI, functionName: 'decimals' },
-      { address: tokenAddress, abi: ERC20_META_ABI, functionName: 'symbol' },
-    ] as const
-  }, [tokenAddress])
+  const pendingRewards = (stakingRead.data?.[1]?.result as bigint | undefined) ?? 0n
+  const currentWeight = (stakingRead.data?.[2]?.result as bigint | undefined) ?? 0n
+  const multiplier = (stakingRead.data?.[3]?.result as bigint | undefined) ?? 0n
+  const tokenAddress = (stakingRead.data?.[4]?.result as Address | undefined) ?? undefined
 
-  const tokenMetaRead = useReadContracts({
-    contracts: tokenMetaContracts,
-    query: {
-      enabled: enabled && tokenMetaContracts.length > 0,
-      refetchInterval: 60_000,
-      staleTime: 30_000,
-      gcTime: 60_000,
-    },
-  })
+  const totalStaked = (stakingRead.data?.[5]?.result as bigint | undefined) ?? 0n
+  const totalWeight = (stakingRead.data?.[6]?.result as bigint | undefined) ?? 0n
+  const rewardsPoolBalance = (stakingRead.data?.[7]?.result as bigint | undefined) ?? 0n
+  const rewardsFundedTotal = (stakingRead.data?.[8]?.result as bigint | undefined) ?? 0n
 
-  // Defaults (safe)
-  const positionRaw = (stakingRead.data?.[0]?.result ?? [0n, 0n, 0n, 0n, false]) as readonly [
-    bigint,
-    bigint,
-    bigint,
-    bigint,
-    boolean
-  ]
+  // You already set these elsewhere; keeping defaults here so UI doesn't crash
+  const tokenDecimals = 18
+  const tokenSymbol = 'PHUCKMC'
 
-  const position = {
-    amount: positionRaw[0] ?? 0n,
-    startTime: positionRaw[1] ?? 0n,
-    unlockTime: positionRaw[2] ?? 0n,
-    rewardDebt: positionRaw[3] ?? 0n,
-    existsFlag: positionRaw[4] ?? false,
+  function fmt(raw: bigint, decimals = tokenDecimals) {
+    try {
+      return Number(formatUnits(raw ?? 0n, decimals))
+    } catch {
+      return 0
+    }
   }
 
-  // ✅ Treat stake as active if amount > 0 (exists flag can lie on some builds)
-  const hasStake = position.amount > 0n
-
-  const pendingRewards = (stakingRead.data?.[1]?.result ?? 0n) as bigint
-  const currentWeight = (stakingRead.data?.[2]?.result ?? 0n) as bigint
-  const multiplier = (stakingRead.data?.[3]?.result ?? 0n) as bigint
-
-  const totalStaked = (stakingRead.data?.[4]?.result ?? 0n) as bigint
-  const totalWeight = (stakingRead.data?.[5]?.result ?? 0n) as bigint
-  const rewardsPoolBalance = (stakingRead.data?.[6]?.result ?? 0n) as bigint
-  const rewardsFundedTotal = (stakingRead.data?.[7]?.result ?? 0n) as bigint
-
-  const tokenDecimals = Number((tokenMetaRead.data?.[0]?.result ?? 18) as number)
-  const tokenSymbol = String((tokenMetaRead.data?.[1]?.result ?? 'PHUCKMC') as string) || 'PHUCKMC'
+  // Human-friendly multiplier string (assuming multiplier uses 1e18 scaling)
+  const multiplierX = useMemo(() => {
+    const x = Number(multiplier) / 1e18
+    if (!Number.isFinite(x) || x <= 0) return '—'
+    return `${x.toFixed(2)}x`
+  }, [multiplier])
 
   return {
-    address: a,
+    address: address as Address | undefined,
     enabled,
-    isLoading: stakingRead.isLoading || tokenMetaRead.isLoading,
-    isFetching: stakingRead.isFetching || tokenMetaRead.isFetching,
-    refetch: stakingRead.refetch,
 
+    // token basics (UI can override with real decimals/symbol elsewhere)
     tokenAddress,
     tokenDecimals,
     tokenSymbol,
 
+    // user
     position,
-    hasStake,
-
     pendingRewards,
     currentWeight,
     multiplier,
-    multiplierX: fmtMultiplierX(multiplier),
+    multiplierX,
 
+    // global
     totalStaked,
     totalWeight,
-
     rewardsPoolBalance,
     rewardsFundedTotal,
+
+    // helpers
+    fmt,
   }
 }
