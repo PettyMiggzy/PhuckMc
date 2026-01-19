@@ -138,7 +138,7 @@ export default function HomePage() {
             <p className="mt-4 text-lg text-white/80 max-w-xl">
               Calm money. Loud memes.
               <br />
-              <span className="font-semibold text-white">Fuck what the chart says.</span>
+              <span className="font-semibold text-white">Phuck what the chart says.</span>
             </p>
 
             <div className="mt-7 flex flex-wrap gap-3">
