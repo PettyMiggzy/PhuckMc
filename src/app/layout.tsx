@@ -1,21 +1,17 @@
-import './globals.css'
-import Providers from '@/providers/Providers'
-
-export const metadata = {
-  title: 'PHUCKMC',
-  description: 'PHUCKMC staking',
-}
+import "./globals.css";
+import SiteHeader from "@/components/SiteHeader";
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <html lang="en">
-      <body>
-        <Providers>{children}</Providers>
+      <body className="min-h-screen bg-black text-white">
+        <SiteHeader />
+        {children}
       </body>
     </html>
-  )
+  );
 }

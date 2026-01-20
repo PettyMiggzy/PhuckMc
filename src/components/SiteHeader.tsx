@@ -1,52 +1,49 @@
-import Image from "next/image";
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+
+function NavLink({
+  href,
+  children,
+}: {
+  href: string;
+  children: React.ReactNode;
+}) {
+  const pathname = usePathname();
+  const active =
+    pathname === href || (href !== "/" && pathname.startsWith(href));
+
+  return (
+    <Link
+      href={href}
+      className={[
+        "px-4 py-2 rounded-full text-sm transition",
+        active ? "bg-white/15 text-white" : "bg-white/5 text-white/80 hover:bg-white/10",
+      ].join(" ")}
+    >
+      {children}
+    </Link>
+  );
+}
 
 export default function SiteHeader() {
   return (
-    <header className="w-full border-b border-white/10">
-      <div className="mx-auto max-w-7xl px-6 py-4 flex items-center justify-between">
-        
-        {/* Left: Logo */}
-        <div className="flex items-center gap-3">
-          <Image
-            src="/logo.png"
-            alt="PHUCKMC"
-            width={40}
-            height={40}
-            priority
-          />
-          <div>
-            <div className="font-semibold text-white">PHUCKMC</div>
-            <div className="text-xs text-white/60">
-              calm money • loud memes
-            </div>
-          </div>
-        </div>
+    <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-black/40 backdrop-blur">
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+        <Link href="/" className="flex items-center gap-3">
+          <div className="font-extrabold tracking-wide">PHUCKMC</div>
+          <span className="hidden sm:inline text-xs text-white/50">
+            Router + Staking
+          </span>
+        </Link>
 
-        {/* Right: Nav */}
-        <nav className="flex items-center gap-3">
-          <span className="px-3 py-1 text-sm rounded-full border border-white/10 text-white/70">
-            PHUCK Swap
-          </span>
-          <span className="px-3 py-1 text-sm rounded-full border border-white/10 text-white/70">
-            Staking
-          </span>
-          <Link
-            href="https://nad.fun/tokens/0x148a3a811979e5BF8366FC279B2d67742Fe17777"
-            target="_blank"
-            className="px-4 py-1.5 text-sm rounded-full bg-purple-600 text-white font-medium"
-          >
-            Buy
-          </Link>
-          <Link
-            href="https://t.me/PhuckMc"
-            target="_blank"
-            className="px-4 py-1.5 text-sm rounded-full border border-white/20 text-white"
-          >
-            Telegram
-          </Link>
+        <nav className="flex items-center gap-2">
+          <NavLink href="/">Home</NavLink>
+          <NavLink href="/swap">Swap</NavLink>
+          <NavLink href="/staking">Stake</NavLink>
+          <NavLink href="/fees">Fees</NavLink>
         </nav>
-
       </div>
     </header>
   );
