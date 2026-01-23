@@ -343,20 +343,36 @@ export default function PredictionsPage() {
                     </div>
 
                     {p.status === 0 && (
-                      <div className="mt-4 text-sm text-white/60">
-                        Waiting for someone to take the other side.
-                      </div>
-                    )}
-                    {p.status === 1 && !expired && (
-                      <div className="mt-4 text-sm text-white/60">
-                        Locked. Resolves at expiry.
-                      </div>
-                    )}
-                    {p.status === 4 && p.winner !== "0x0000000000000000000000000000000000000000" && (
-                      <div className="mt-4 text-sm text-white/60">
-                        Winner: <span className="text-white/90">{shortAddr(p.winner)}</span>
-                      </div>
-                    )}
+  <div className="mt-4 space-y-2">
+    <button
+      className={purpleBtn + " w-full"}
+      disabled={!isConnected}
+      onClick={async () => {
+        try {
+          await write(
+            PREDICTIONS_ADDRESS,
+            PREDICTIONS_ABI,
+            "matchPrediction",
+            [BigInt(id)],
+            p.creatorEscrow // MUST MATCH EXACTLY
+          );
+        } catch (e: any) {
+          alert(e?.shortMessage || e?.message || "Failed to take other side");
+        }
+      }}
+    >
+      Take other side (stake {formatEther(p.creatorEscrow)} MON)
+    </button>
+
+    <div className="text-xs text-white/60">
+      You will take:{" "}
+      <b className="text-white">
+        {p.creatorSide === 0 ? `B: ${outcomeB}` : `A: ${outcomeA}`}
+      </b>
+    </div>
+  </div>
+)}
+
                   </div>
 
                   {matched && expired && (
