@@ -87,7 +87,8 @@ export default function CreatePredictionPage() {
     // store labels locally so list page can show nice text
     saveMarketMeta({ marketId, title: t, outcomeA: a, outcomeB: b });
 
-    const expiry = Math.floor(Date.now() / 1000) + expirySeconds;
+    // IMPORTANT: expiry must be bigint for uint64
+    const expiry = BigInt(Math.floor(Date.now() / 1000) + expirySeconds);
 
     try {
       setLoading(true);
@@ -115,11 +116,12 @@ export default function CreatePredictionPage() {
     <div className="mx-auto max-w-5xl px-4 py-10 text-white">
       {/* glossy header */}
       <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-black/20 backdrop-blur-xl p-6">
-        <div className="absolute -inset-10 opacity-40 blur-3xl"
-             style={{
-               background:
-                 "radial-gradient(circle at 20% 30%, rgba(168,85,247,0.35), transparent 55%), radial-gradient(circle at 75% 20%, rgba(236,72,153,0.18), transparent 55%), radial-gradient(circle at 40% 80%, rgba(168,85,247,0.20), transparent 55%)",
-             }}
+        <div
+          className="absolute -inset-10 opacity-40 blur-3xl"
+          style={{
+            background:
+              "radial-gradient(circle at 20% 30%, rgba(168,85,247,0.35), transparent 55%), radial-gradient(circle at 75% 20%, rgba(236,72,153,0.18), transparent 55%), radial-gradient(circle at 40% 80%, rgba(168,85,247,0.20), transparent 55%)",
+          }}
         />
         <div className="relative flex items-center justify-between gap-4">
           <div>

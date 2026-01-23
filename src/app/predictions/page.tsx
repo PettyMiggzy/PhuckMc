@@ -161,14 +161,31 @@ export default function PredictionsPage() {
           ]);
 
           const p = unpackPrediction(pRaw);
+
+          // disputes() returns a tuple (array), not a named object
+          // expected: (exists, proposedCreatorWins, proposer, proposerBond, proposedAt, challenged, challenger, challengerBond, finalized)
+          const tuple = dRaw as readonly [
+            boolean,
+            boolean,
+            `0x${string}`,
+            bigint,
+            bigint,
+            boolean,
+            `0x${string}`,
+            bigint,
+            boolean
+          ];
+
           const d = {
-            exists: dRaw.exists as boolean,
-            proposedCreatorWins: dRaw.proposedCreatorWins as boolean,
-            proposer: dRaw.proposer as `0x${string}`,
-            proposedAt: Number(dRaw.proposedAt as bigint | number),
-            challenged: dRaw.challenged as boolean,
-            challenger: dRaw.challenger as `0x${string}`,
-            finalized: dRaw.finalized as boolean,
+            exists: tuple[0],
+            proposedCreatorWins: tuple[1],
+            proposer: tuple[2],
+            proposerBond: tuple[3],
+            proposedAt: Number(tuple[4]),
+            challenged: tuple[5],
+            challenger: tuple[6],
+            challengerBond: tuple[7],
+            finalized: tuple[8],
           };
 
           return { id, p, d, bond: bond as bigint };
