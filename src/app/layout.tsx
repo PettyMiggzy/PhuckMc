@@ -1,22 +1,26 @@
-import type { Metadata } from 'next'
-import './globals.css'
-import Providers from './providers'
-import SiteHeader from '@/components/SiteHeader'
+import "./globals.css";
+import type { Metadata } from "next";
+import Providers from "@/providers/Providers";
+import SiteHeader from "@/components/SiteHeader";
 
 export const metadata: Metadata = {
-  title: 'PHUCKMC',
-  description: 'PHUCKMC Router + Staking',
-}
+  title: "PHUCKMC",
+  description: "Router + Staking",
+};
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en">
-      <body>
+      <body className="min-h-screen bg-black text-white">
         <Providers>
           <SiteHeader />
-          {children}
+          <main>{children}</main>
         </Providers>
       </body>
     </html>
-  )
+  );
 }

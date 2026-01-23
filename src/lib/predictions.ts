@@ -1,0 +1,5 @@
+export const PREDICTIONS_ADDRESS =
+  (process.env.NEXT_PUBLIC_PREDICTIONS_ADDRESS as `0x${string}`) ||
+  "0xbaD5DB55f8F0687701A64A63838214C8511eAC27";
+
+export const PREDICTIONS_CHAIN_ID = Number(process.env.NEXT_PUBLIC_CHAIN_ID || 143);
