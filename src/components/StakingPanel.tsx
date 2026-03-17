@@ -11,6 +11,15 @@ import { useStakingData } from '@/hooks/useStakingData'
 import { ERC20_ABI, STAKING_ABI, STAKING_ADDRESS } from '@/lib/contracts'
 import { GAS } from '@/lib/gas'
 
+const S = {
+  accent: '#c8ff00',
+  purple: '#9945ff',
+  card:   'rgba(255,255,255,0.04)',
+  border: 'rgba(255,255,255,0.08)',
+  text:   '#e8e6f0',
+  muted:  'rgba(232,230,240,0.5)',
+}
+
 function formatCompact(n: number) {
   if (!Number.isFinite(n)) return '0'
   return Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 2 }).format(n)
@@ -18,12 +27,7 @@ function formatCompact(n: number) {
 
 function formatSmart(n: number) {
   if (!Number.isFinite(n)) return '0'
-  const maxFrac =
-    n === 0 ? 0 :
-    n < 0.0001 ? 10 :
-    n < 0.01 ? 8 :
-    n < 1 ? 6 : 4
-
+  const maxFrac = n === 0 ? 0 : n < 0.0001 ? 10 : n < 0.01 ? 8 : n < 1 ? 6 : 4
   return Intl.NumberFormat('en-US', { maximumFractionDigits: maxFrac }).format(n)
 }
 
@@ -36,26 +40,21 @@ function secondsToClock(sec: number) {
 }
 
 function toNum(x: bigint | undefined, decimals: number) {
-  try {
-    return Number(formatUnits(x ?? 0n, decimals))
-  } catch {
-    return 0
-  }
+  try { return Number(formatUnits(x ?? 0n, decimals)) } catch { return 0 }
 }
 
 function calcSharePct(userWeight: bigint, totalWeight: bigint) {
   if (totalWeight <= 0n) return 0
-  // basis points, then /100
   const bps = (userWeight * 10000n) / totalWeight
   return Number(bps) / 100
 }
 
-function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
+function StatCard({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-black/30 backdrop-blur-md p-4">
-      <div className="text-[11px] tracking-[0.22em] text-white/55">{label}</div>
-      <div className="mt-2 text-xl font-semibold text-white">{value}</div>
-      {sub ? <div className="mt-1 text-xs text-white/50">{sub}</div> : null}
+    <div style={{padding:'16px 18px', borderRadius:14, border:`1px solid ${S.border}`, background:S.card}}>
+      <div style={{fontSize:'.68rem', letterSpacing:'.14em', color:S.muted, fontWeight:600, marginBottom:6}}>{label}</div>
+      <div style={{fontFamily:"'Bebas Neue',sans-serif", fontSize:'1.6rem', letterSpacing:'.04em', color: accent || S.text, lineHeight:1}}>{value}</div>
+      {sub && <div style={{fontSize:'.72rem', color:S.muted, marginTop:4}}>{sub}</div>}
     </div>
   )
 }
@@ -69,8 +68,7 @@ export default function StakingPanel() {
   const { poolNum, fundedNum, capacityNum, fillRatio, pulse } = useRewardsPool()
 
   const tokenDecimals = d.tokenDecimals ?? 18
-  const tokenSymbol = d.tokenSymbol ?? 'PHUCKMC'
-
+  const tokenSymbol   = d.tokenSymbol ?? 'PHUCKMC'
   const nowSec = Math.floor(Date.now() / 1000)
 
   const unlockIn = useMemo(() => {
@@ -80,264 +78,152 @@ export default function StakingPanel() {
 
   const isUnlocked = d.hasStake && unlockIn === 0
 
-  const stakedUser = toNum(d.position.amount, tokenDecimals)
-  const pendingUser = toNum(d.pendingRewards, tokenDecimals)
-  const rewardSharePct = calcSharePct(d.currentWeight, d.totalWeight)
+  const stakedUser  = toNum(d.position.amount, tokenDecimals)
+  const pendingRaw  = toNum(d.pendingRewards, tokenDecimals)
+  // ── FIX: never show more rewards than the pool actually holds ──────────────
+  const pendingUser = Math.min(pendingRaw, poolNum)
+  const rewardSharePct = calcSharePct(d.currentWeight ?? 0n, d.totalWeight ?? 0n)
+
+  const totalStaked = toNum(d.totalStaked, tokenDecimals)
+  const poolBalance = poolNum
 
   if (!mounted) {
-    return <div className="rounded-3xl border border-white/10 bg-black/30 p-8 text-white/70">Loading staking…</div>
+    return (
+      <div style={{padding:'2rem', borderRadius:16, border:`1px solid ${S.border}`, background:S.card, color:S.muted, fontSize:'.9rem'}}>
+        Loading staking…
+      </div>
+    )
   }
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-5 gap-8">
-      {/* LEFT */}
-      <div className="xl:col-span-3 space-y-6">
-        <div className="rounded-3xl border border-white/10 bg-black/30 backdrop-blur-md p-8 shadow-[0_0_60px_rgba(168,85,247,0.12)]">
-          <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight">
-            {tokenSymbol} <span className="text-purple-300">Staking</span>
+    <div style={{display:'grid', gridTemplateColumns:'1fr 360px', gap:'2rem', alignItems:'start'}}>
+
+      {/* ── LEFT ─────────────────────────────────────────── */}
+      <div style={{display:'flex', flexDirection:'column', gap:'1.5rem'}}>
+
+        {/* Protocol header */}
+        <div style={{padding:'20px 22px', borderRadius:16, border:`1px solid rgba(153,69,255,0.25)`, background:'rgba(153,69,255,0.06)'}}>
+          <h2 style={{fontFamily:"'Bebas Neue',sans-serif", fontSize:'1.6rem', letterSpacing:'.04em', margin:'0 0 4px'}}>
+            {tokenSymbol} <span style={{color:'#c084fc'}}>Staking</span>
           </h2>
-          <p className="mt-2 text-white/75 max-w-xl">
+          <p style={{color:S.muted, fontSize:'.85rem', margin:0}}>
             Time-weighted staking. Longer locks earn more. Early exits feed the reward pool.
           </p>
-
-          <div className="mt-8">
-            <StakeModal tokenAddress={d.tokenAddress} tokenDecimals={tokenDecimals} tokenSymbol={tokenSymbol} />
-          </div>
         </div>
 
-        {/* YOUR POSITION */}
-        <div className="rounded-3xl border border-white/10 bg-black/30 backdrop-blur-md p-8">
-          <div className="flex items-center justify-between">
-            <div className="text-sm tracking-[0.22em] text-white/60">YOUR POSITION</div>
-            <div
-              className={`text-xs px-3 py-1 rounded-full border ${
-                !d.hasStake
-                  ? 'border-white/10 text-white/50'
-                  : isUnlocked
-                  ? 'border-emerald-400/30 text-emerald-200 bg-emerald-500/10'
-                  : 'border-purple-400/30 text-purple-200 bg-purple-500/10'
-              }`}
-            >
-              {!d.hasStake ? 'No active stake' : isUnlocked ? 'Unlocked' : 'Locked'}
+        {/* Connect prompt */}
+        {!isConnected ? (
+          <div style={{padding:'22px', borderRadius:16, border:`1px solid ${S.border}`, background:S.card, textAlign:'center', color:S.muted, fontSize:'.9rem'}}>
+            Connect wallet to stake
+          </div>
+        ) : (
+          <>
+            {/* Position stats */}
+            <div style={{display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'10px'}}>
+              <StatCard label="STAKED" value={formatCompact(stakedUser) + ' ' + tokenSymbol} />
+              <StatCard
+                label="PENDING REWARDS"
+                value={formatSmart(pendingUser) + ' ' + tokenSymbol}
+                sub={pendingRaw > poolNum ? `Pool has ${formatCompact(poolBalance)} available` : undefined}
+                accent={pendingUser > 0 ? S.accent : undefined}
+              />
+              <StatCard
+                label="UNLOCKS IN"
+                value={d.hasStake ? (isUnlocked ? 'NOW ✔' : secondsToClock(unlockIn)) : '—'}
+                accent={isUnlocked ? S.accent : undefined}
+              />
+            </div>
+
+            <div style={{display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:'10px'}}>
+              <StatCard
+                label="REWARD SHARE"
+                value={rewardSharePct.toFixed(4) + '%'}
+                sub="your share of total weight"
+              />
+              <StatCard
+                label="MULTIPLIER"
+                value={d.multiplier ? (Number(d.multiplier) / 100).toFixed(2) + '×' : '—'}
+                sub="based on lock duration"
+              />
+            </div>
+
+            {/* Early exit warning */}
+            {d.hasStake && !isUnlocked && (
+              <div style={{padding:'12px 16px', borderRadius:12, border:'1px solid rgba(251,146,60,0.2)', background:'rgba(251,146,60,0.05)', fontSize:'.82rem', color:'rgba(253,186,116,0.8)', lineHeight:1.5}}>
+                <strong style={{color:'#fb923c'}}>Early unstake = 10% penalty.</strong> 60% goes back to the reward pool, 40% to buyback.
+              </div>
+            )}
+
+            {/* Action buttons */}
+            <div style={{display:'flex', gap:'10px', flexWrap:'wrap'}}>
+              <StakeModal
+                isConnected={isConnected}
+                userAddress={address as `0x${string}` | undefined}
+                tokenAddress={d.tokenAddress}
+                tokenDecimals={tokenDecimals}
+                tokenSymbol={tokenSymbol}
+              />
+            </div>
+
+            {/* Transparency note */}
+            <div style={{padding:'14px 16px', borderRadius:12, border:`1px solid ${S.border}`, background:'rgba(255,255,255,0.02)', fontSize:'.78rem', color:S.muted, lineHeight:1.6}}>
+              <strong style={{color:S.text}}>Transparency note:</strong> This staking contract includes an emergency withdrawal path that may allow
+              withdrawal without rewards and can be handled case-by-case. This is <u>not guaranteed</u> and is
+              processed manually — contact the team if you believe you qualify.
+            </div>
+          </>
+        )}
+
+        {/* Global stats */}
+        <div style={{padding:'20px 22px', borderRadius:16, border:`1px solid ${S.border}`, background:S.card}}>
+          <div style={{fontFamily:"'Bebas Neue',sans-serif", fontSize:'1rem', letterSpacing:'.1em', color:S.muted, marginBottom:14}}>PROTOCOL STATS</div>
+          <div style={{display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'10px'}}>
+            <div>
+              <div style={{fontSize:'.68rem', letterSpacing:'.12em', color:S.muted, fontWeight:600}}>TOTAL STAKED</div>
+              <div style={{fontFamily:"'Bebas Neue',sans-serif", fontSize:'1.4rem', color:S.accent, marginTop:4}}>{formatCompact(totalStaked)}</div>
+              <div style={{fontSize:'.72rem', color:S.muted}}>{tokenSymbol}</div>
+            </div>
+            <div>
+              <div style={{fontSize:'.68rem', letterSpacing:'.12em', color:S.muted, fontWeight:600}}>REWARDS POOL</div>
+              <div style={{fontFamily:"'Bebas Neue',sans-serif", fontSize:'1.4rem', color:S.accent, marginTop:4}}>{formatCompact(poolBalance)}</div>
+              <div style={{fontSize:'.72rem', color:S.muted}}>{tokenSymbol}</div>
+            </div>
+            <div>
+              <div style={{fontSize:'.68rem', letterSpacing:'.12em', color:S.muted, fontWeight:600}}>LIFETIME FUNDED</div>
+              <div style={{fontFamily:"'Bebas Neue',sans-serif", fontSize:'1.4rem', color:S.accent, marginTop:4}}>{formatCompact(fundedNum)}</div>
+              <div style={{fontSize:'.72rem', color:S.muted}}>{tokenSymbol}</div>
             </div>
           </div>
-
-          <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <StatCard label="STAKED" value={`${formatSmart(stakedUser)} ${tokenSymbol}`} />
-            <StatCard label="PENDING REWARDS" value={`${formatSmart(pendingUser)} ${tokenSymbol}`} />
-            <StatCard
-              label="UNLOCKS IN"
-              value={d.hasStake ? (isUnlocked ? '0d 0h 0m' : secondsToClock(unlockIn)) : '—'}
-            />
-          </div>
-
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <StatCard
-              label="REWARD SHARE"
-              value={d.hasStake ? `${rewardSharePct.toFixed(2)}%` : '—'}
-              sub="your share of total weight"
-            />
-            <StatCard
-              label="MULTIPLIER"
-              value={d.hasStake ? `${toNum(d.multiplier, 18).toFixed(2)}x` : '—'}
-              sub="based on lock duration"
-            />
-          </div>
-
-          <div className="mt-5 text-xs text-white/50">
-            Early unstake = 10% penalty, no rewards. 60% → pool, 40% → buyback.
-          </div>
-
-          {/* TRANSPARENCY DISCLAIMER (you asked for this) */}
-          <div className="mt-5 rounded-2xl border border-white/10 bg-black/25 p-4 text-sm text-white/75">
-            <span className="font-semibold text-white">Transparency note:</span>{' '}
-            This staking contract includes an <span className="font-semibold">emergency withdrawal</span> path that may allow
-            withdrawal <span className="font-semibold">without rewards</span> and can be handled case-by-case. This is{' '}
-            <span className="font-semibold">not guaranteed</span> and is processed manually — contact the team if you believe you qualify.
-          </div>
-        </div>
-      </div>
-
-      {/* RIGHT */}
-      <div className="xl:col-span-2 space-y-6">
-        {/* REACTOR */}
-        <div className="rounded-3xl border border-white/10 bg-black/30 backdrop-blur-md p-8 flex flex-col items-center">
-          <RewardsCore fill={fillRatio} pulse={pulse} labelTop="REWARD REACTOR" labelBottom="on-chain rewards pool" />
-
-          <div className="mt-6 grid grid-cols-3 gap-4 w-full">
-            <StatCard label="POOL" value={`${formatSmart(poolNum)} ${tokenSymbol}`} />
-            <StatCard label="CAPACITY" value={`${formatSmart(capacityNum)} ${tokenSymbol}`} sub="reactor target" />
-            <StatCard label="FUNDED" value={`${formatSmart(fundedNum)} ${tokenSymbol}`} sub="lifetime" />
-          </div>
-
-          <div className="mt-3 text-xs text-white/50 text-center">
-            Funding uses <span className="text-white/80 font-semibold">{tokenSymbol}</span> (not MON).
-          </div>
-        </div>
-
-        {/* GLOBAL */}
-        <div className="rounded-3xl border border-white/10 bg-black/30 backdrop-blur-md p-8">
-          <div className="text-sm tracking-[0.22em] text-white/60">GLOBAL</div>
-
-          <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <StatCard
-              label="TOTAL STAKED"
-              value={`${formatCompact(toNum(d.totalStaked, tokenDecimals))} ${tokenSymbol}`}
-            />
-            {/* REMOVED THE GIANT TOTAL WEIGHT CARD ON PURPOSE */}
-            <StatCard
-              label="REWARDS POOL"
-              value={`${formatCompact(toNum(d.rewardsPoolBalance, tokenDecimals))} ${tokenSymbol}`}
-            />
-            <StatCard
-              label="FUNDED (LIFETIME)"
-              value={`${formatCompact(toNum(d.rewardsFundedTotal, tokenDecimals))} ${tokenSymbol}`}
-            />
-            <StatCard
-              label="BUYBACK WALLET"
-              value={`${d.buybackWallet?.slice(0, 6)}…${d.buybackWallet?.slice(-4)}`}
-              sub="on-chain address"
-            />
-          </div>
-        </div>
-
-        <FundRewardsCard
-          isConnected={isConnected}
-          userAddress={address as `0x${string}` | undefined}
-          tokenAddress={d.tokenAddress}
-          tokenDecimals={tokenDecimals}
-          tokenSymbol={tokenSymbol}
-        />
-      </div>
-    </div>
-  )
-}
-
-function FundRewardsCard({
-  isConnected,
-  userAddress,
-  tokenAddress,
-  tokenDecimals,
-  tokenSymbol,
-}: {
-  isConnected: boolean
-  userAddress?: `0x${string}`
-  tokenAddress?: `0x${string}`
-  tokenDecimals: number
-  tokenSymbol: string
-}) {
-  const publicClient = usePublicClient()
-  const { writeContractAsync, isPending } = useWriteContract()
-  const [amt, setAmt] = useState('')
-
-  const amtWei = useMemo(() => {
-    try {
-      return amt ? parseUnits(amt, tokenDecimals) : 0n
-    } catch {
-      return 0n
-    }
-  }, [amt, tokenDecimals])
-
-  const { data: allowance } = useReadContract({
-    address: tokenAddress,
-    abi: [
-      {
-        type: 'function',
-        name: 'allowance',
-        stateMutability: 'view',
-        inputs: [
-          { name: 'owner', type: 'address' },
-          { name: 'spender', type: 'address' },
-        ],
-        outputs: [{ type: 'uint256' }],
-      },
-    ] as const,
-    functionName: 'allowance',
-    args: userAddress && tokenAddress ? [userAddress, STAKING_ADDRESS] : undefined,
-    query: {
-      enabled: !!userAddress && !!tokenAddress,
-      staleTime: 5_000,
-      refetchInterval: 10_000,
-    },
-  })
-
-  const needsApprove = !!tokenAddress && (allowance ?? 0n) < amtWei && amtWei > 0n
-
-  async function approve() {
-    if (!tokenAddress) return
-    const max = 2n ** 256n - 1n
-    const hash = await writeContractAsync({
-      address: tokenAddress,
-      abi: [
-        {
-          type: 'function',
-          name: 'approve',
-          stateMutability: 'nonpayable',
-          inputs: [
-            { name: 'spender', type: 'address' },
-            { name: 'amount', type: 'uint256' },
-          ],
-          outputs: [{ type: 'bool' }],
-        },
-      ] as const,
-      functionName: 'approve',
-      args: [STAKING_ADDRESS, max],
-      gas: GAS.APPROVE,
-    })
-    if (publicClient) await publicClient.waitForTransactionReceipt({ hash })
-  }
-
-  async function fund() {
-    if (amtWei <= 0n) return
-    const hash = await writeContractAsync({
-      address: STAKING_ADDRESS,
-      abi: STAKING_ABI,
-      functionName: 'fundRewards',
-      args: [amtWei],
-      gas: GAS.FUND,
-    })
-    if (publicClient) await publicClient.waitForTransactionReceipt({ hash })
-  }
-
-  return (
-    <div className="rounded-3xl border border-white/10 bg-black/30 backdrop-blur-md p-8">
-      <div className="text-sm tracking-[0.22em] text-white/60">COMMUNITY FUND</div>
-      <div className="mt-2 text-sm text-white/75">
-        Fund with <span className="font-semibold text-white">{tokenSymbol}</span>.
-      </div>
-
-      {!isConnected ? (
-        <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-4 text-white/65">
-          Connect wallet to fund rewards.
-        </div>
-      ) : (
-        <div className="mt-5 flex gap-2">
-          <input
-            value={amt}
-            onChange={(e) => setAmt(e.target.value)}
-            placeholder={`Amount (${tokenSymbol})`}
-            inputMode="decimal"
-            className="flex-1 rounded-xl bg-black/40 border border-white/10 px-4 py-3 text-white outline-none"
-          />
-          {needsApprove ? (
-            <button
-              disabled={isPending || !tokenAddress || amtWei === 0n}
-              onClick={approve}
-              className="rounded-xl bg-purple-600 px-5 py-3 font-semibold hover:bg-purple-500 disabled:opacity-50"
-            >
-              {isPending ? 'Pending…' : 'Approve'}
-            </button>
-          ) : (
-            <button
-              disabled={isPending || amtWei === 0n}
-              onClick={fund}
-              className="rounded-xl bg-purple-600 px-5 py-3 font-semibold hover:bg-purple-500 disabled:opacity-50"
-            >
-              {isPending ? 'Pending…' : 'Fund'}
-            </button>
+          {d.buybackWallet && (
+            <div style={{marginTop:14, paddingTop:14, borderTop:`1px solid ${S.border}`}}>
+              <div style={{fontSize:'.68rem', letterSpacing:'.12em', color:S.muted, fontWeight:600, marginBottom:4}}>BUYBACK WALLET</div>
+              <div style={{fontFamily:"'DM Mono',monospace", fontSize:'.75rem', color:S.muted, wordBreak:'break-all'}}>{d.buybackWallet}</div>
+            </div>
           )}
         </div>
-      )}
+      </div>
+
+      {/* ── RIGHT: REWARD REACTOR ─────────────────────────── */}
+      <div style={{display:'flex', flexDirection:'column', gap:'1.5rem'}}>
+        <div style={{padding:'22px', borderRadius:16, border:`1px solid rgba(153,69,255,0.2)`, background:'rgba(153,69,255,0.04)'}}>
+          <div style={{fontFamily:"'Bebas Neue',sans-serif", fontSize:'1rem', letterSpacing:'.1em', color:'#c084fc', marginBottom:'1rem'}}>REWARD REACTOR</div>
+          <RewardsCore fill={fillRatio} pulse={pulse} />
+          <div style={{marginTop:'1rem', display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8}}>
+            {[
+              {l:'POOL', v:formatCompact(poolBalance), u:tokenSymbol},
+              {l:'CAPACITY', v:formatCompact(capacityNum), u:tokenSymbol, sub:'reactor target'},
+              {l:'FUNDED', v:formatCompact(fundedNum), u:tokenSymbol, sub:'lifetime'},
+            ].map(({l,v,u,sub}) => (
+              <div key={l} style={{padding:'10px 12px', borderRadius:10, border:`1px solid ${S.border}`, background:S.card, textAlign:'center'}}>
+                <div style={{fontSize:'.62rem', letterSpacing:'.1em', color:S.muted, fontWeight:600}}>{l}</div>
+                <div style={{fontFamily:"'Bebas Neue',sans-serif", fontSize:'1.2rem', color:S.accent, marginTop:2}}>{v}</div>
+                <div style={{fontSize:'.68rem', color:S.muted}}>{sub || u}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{marginTop:12, fontSize:'.75rem', color:'rgba(232,230,240,0.3)'}}>Funding uses {tokenSymbol} (not MON).</div>
+        </div>
+      </div>
     </div>
   )
 }
