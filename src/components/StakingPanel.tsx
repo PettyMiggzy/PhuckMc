@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { useAccount, useReadContract, useWriteContract, usePublicClient } from 'wagmi'
-import { formatUnits, parseUnits } from 'viem'
+import { useAccount } from 'wagmi'
+ import { formatUnits } from 'viem'
 
 import RewardsCore from './RewardsCore'
 import StakeModal from './StakeModal'
@@ -157,9 +157,7 @@ export default function StakingPanel() {
             {/* Action buttons */}
             <div style={{display:'flex', gap:'10px', flexWrap:'wrap'}}>
               <StakeModal
-                isConnected={isConnected}
-                userAddress={address as `0x${string}` | undefined}
-                tokenAddress={d.tokenAddress}
+               tokenAddress={d.tokenAddress}
                 tokenDecimals={tokenDecimals}
                 tokenSymbol={tokenSymbol}
               />
