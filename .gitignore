@@ -19,3 +19,4 @@ dist/
 *.log
 .vercel
 .env*.local
+tsconfig.tsbuildinfo
