@@ -1,22 +1,30 @@
+# deps
 node_modules
+.pnpm-store
+
+# next
 .next
+out
+.vercel
+next-env.d.ts
+
+# env
 .env
 .env.local
 .env.*.local
-dist
-build
+
+# logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+vercel-*-log.txt
+"e error"
+
+# editor
 .DS_Store
-node_modules/
-.next/
-dist/
-.env
-.next/
-node_modules/
-dist/
-.env
-.env.local
-*.log
-.vercel
-.env*.local
-tsconfig.tsbuildinfo
+.idea
+.vscode
+
+# misc
+stickers/

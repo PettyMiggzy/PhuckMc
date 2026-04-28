@@ -49,6 +49,7 @@ export default function SiteHeader() {
           {navLink("/swap", "Swap")}
           {navLink("/staking", "Stake")}
           {navLink("/predictions", "Predictions")}
+          {navLink("/play", "Play")}
 
           {!isConnected ? (
             <button

@@ -95,10 +95,10 @@ export default function HomePage() {
             <div style={{fontFamily:'Bebas Neue',fontSize:'1.4rem',letterSpacing:'.06em'}}>PHUCK<span style={{color:'var(--accent)'}}>MC</span></div>
           </div>
           <div style={{display:'flex',alignItems:'center',gap:'8px',flexWrap:'wrap'}}>
-            {[{label:'Home',href:'/'},{label:'Swap',href:'/swap'},{label:'Staking',href:'/staking'},{label:'Predictions',href:'/predictions'}].map(l=>(
+            {[{label:'Home',href:'/'},{label:'Swap',href:'/swap'},{label:'Staking',href:'/staking'},{label:'Predictions',href:'/predictions'},{label:'Play',href:'/play'}].map(l=>(
               <Link key={l.label} href={l.href} style={{padding:'6px 14px',borderRadius:999,border:'1px solid var(--border)',background:'var(--card)',fontSize:'.8rem',fontWeight:500,color:'var(--text)',textDecoration:'none'}}>{l.label}</Link>
             ))}
-            {[{icon:'✈️',label:'TG',href:'https://t.me/PhuckMc'},{icon:'𝕏',label:'X',href:'https://t.me/PhuckMc/74931'},{icon:'▶',label:'YT',href:'https://youtube.com/@phuckmc-w8k'},{icon:'♪',label:'TT',href:'https://tiktok.com/@phuckmc'}].map(s=>(
+            {[{icon:'✈️',label:'TG',href:'https://t.me/PhuckMc'},{icon:'▶',label:'YT',href:'https://youtube.com/@phuckmc-w8k'},{icon:'♪',label:'TT',href:'https://tiktok.com/@phuckmc'}].map(s=>(
               <a key={s.label} href={s.href} target="_blank" rel="noreferrer" style={{padding:'6px 12px',borderRadius:999,border:'1px solid var(--border)',background:'var(--card)',fontSize:'.8rem',color:'var(--muted)',textDecoration:'none'}}>{s.icon}</a>
             ))}
           </div>
@@ -198,13 +198,13 @@ export default function HomePage() {
         <footer style={{borderTop:'1px solid var(--border)',padding:'3rem 2rem',textAlign:'center'}}>
           <div style={{fontFamily:'Bebas Neue',fontSize:'2rem',letterSpacing:'.06em',marginBottom:'1.5rem'}}>PHUCK<span style={{color:'var(--accent)'}}>MC</span></div>
           <div style={{display:'flex',justifyContent:'center',gap:'1.5rem',marginBottom:'2rem',flexWrap:'wrap'}}>
-            {[{label:'Telegram',href:'https://t.me/PhuckMc'},{label:'X/Twitter',href:'https://t.me/PhuckMc/74931'},{label:'YouTube',href:'https://youtube.com/@phuckmc-w8k'},{label:'TikTok',href:'https://tiktok.com/@phuckmc'},{label:'Staking',href:'/staking'},{label:'Predictions',href:'/predictions'}].map(l=>(
+            {[{label:'Telegram',href:'https://t.me/PhuckMc'},{label:'Play',href:'/play'},{label:'YouTube',href:'https://youtube.com/@phuckmc-w8k'},{label:'TikTok',href:'https://tiktok.com/@phuckmc'},{label:'Staking',href:'/staking'},{label:'Predictions',href:'/predictions'},{label:'Play',href:'/play'}].map(l=>(
               <a key={l.label} href={l.href} target={l.href.startsWith('http')?'_blank':undefined} rel={l.href.startsWith('http')?'noreferrer':undefined} style={{color:'var(--muted)',textDecoration:'none',fontSize:'.9rem'}}
                 onMouseEnter={e=>(e.currentTarget.style.color='var(--accent)')} onMouseLeave={e=>(e.currentTarget.style.color='var(--muted)')}
               >{l.label}</a>
             ))}
           </div>
-          <div style={{fontSize:'.75rem',color:'rgba(232,230,240,.3)'}}>© 2025 PHUCKMC. Not financial advice. PHUCK the chart.</div>
+          <div style={{fontSize:'.75rem',color:'rgba(232,230,240,.3)'}}>© 2026 PHUCKMC. Not financial advice. PHUCK the chart.</div>
         </footer>
       </div>
     </>
