@@ -24,8 +24,7 @@ export default function PlinkoGame() {
   useEffect(() => { setBestBank(Number(localStorage.getItem('phuck_best_plinko')||'100')) }, [])
 
   useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
+    const canvas = canvasRef.current!
     const ctx = canvas.getContext('2d')!
     const W = canvas.width, H = canvas.height
 

@@ -24,8 +24,7 @@ export default function RunnerGame() {
   useEffect(() => { setBest(Number(localStorage.getItem('phuck_best_runner')||'0')) }, [])
 
   useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
+    const canvas = canvasRef.current!
     const ctx = canvas.getContext('2d')!
     const W = canvas.width, H = canvas.height
     const groundY = H - 80

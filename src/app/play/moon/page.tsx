@@ -25,8 +25,7 @@ export default function MoonGame() {
   useEffect(() => { setBest(Number(localStorage.getItem('phuck_best_moon')||'0')) }, [])
 
   useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
+    const canvas = canvasRef.current!
     const ctx = canvas.getContext('2d')!
     const W = canvas.width, H = canvas.height
 

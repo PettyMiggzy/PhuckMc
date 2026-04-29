@@ -24,8 +24,7 @@ export default function DiamondGame() {
   useEffect(() => { setBest(Number(localStorage.getItem('phuck_best_diamond')||'0')) }, [])
 
   useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
+    const canvas = canvasRef.current!
     const ctx = canvas.getContext('2d')!
     const W = canvas.width, H = canvas.height
 

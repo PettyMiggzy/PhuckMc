@@ -28,3 +28,4 @@ vercel-*-log.txt
 
 # misc
 stickers/
+tsconfig.tsbuildinfo
