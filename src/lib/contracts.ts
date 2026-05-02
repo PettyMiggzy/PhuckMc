@@ -33,3 +33,39 @@ export const STAKING_ABI = [
   { type: 'function', name: 'unstake', stateMutability: 'nonpayable', inputs: [], outputs: [] },
   { type: 'function', name: 'unstakeEarly', stateMutability: 'nonpayable', inputs: [], outputs: [] },
 ] as const
+
+// ─── VAULT (Privacy Vault — per-user contract via factory) ────────────────
+export const VAULT_FACTORY_ADDRESS = '0x009435C220C157ceeE2EcD2d8dcE907D7697daa6' as const
+export const VAULT_TIER_THRESHOLD = 2_000_000n // 2M $PHUCK to use vault
+
+export const VAULT_FACTORY_ABI = [
+  { type: 'function', name: 'createMyVault', stateMutability: 'nonpayable', inputs: [], outputs: [{ type: 'address' }] },
+  { type: 'function', name: 'userVault', stateMutability: 'view', inputs: [{ type: 'address' }], outputs: [{ type: 'address' }] },
+  { type: 'function', name: 'hasVault', stateMutability: 'view', inputs: [{ type: 'address' }], outputs: [{ type: 'bool' }] },
+  { type: 'function', name: 'getVault', stateMutability: 'view', inputs: [{ type: 'address' }], outputs: [{ type: 'address' }] },
+  { type: 'function', name: 'totalVaults', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'event', name: 'VaultCreated', inputs: [
+    { name: 'owner', type: 'address', indexed: true },
+    { name: 'vault', type: 'address', indexed: true },
+    { name: 'totalVaultsAtCreation', type: 'uint256', indexed: false }
+  ] },
+] as const
+
+export const VAULT_ABI = [
+  { type: 'function', name: 'owner', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
+  { type: 'function', name: 'createdAt', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'deposit', stateMutability: 'nonpayable', inputs: [{ name: 'token', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [] },
+  { type: 'function', name: 'withdraw', stateMutability: 'nonpayable', inputs: [{ name: 'token', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [] },
+  { type: 'function', name: 'depositNative', stateMutability: 'payable', inputs: [], outputs: [] },
+  { type: 'function', name: 'withdrawNative', stateMutability: 'nonpayable', inputs: [{ name: 'amount', type: 'uint256' }], outputs: [] },
+  { type: 'function', name: 'balanceOf', stateMutability: 'view', inputs: [{ name: 'token', type: 'address' }], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'nativeBalance', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'event', name: 'Deposited', inputs: [
+    { name: 'token', type: 'address', indexed: true },
+    { name: 'amount', type: 'uint256', indexed: false }
+  ] },
+  { type: 'event', name: 'Withdrawn', inputs: [
+    { name: 'token', type: 'address', indexed: true },
+    { name: 'amount', type: 'uint256', indexed: false }
+  ] },
+] as const
