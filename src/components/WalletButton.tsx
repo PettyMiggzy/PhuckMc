@@ -14,10 +14,19 @@ export default function WalletButton() {
   const { disconnect } = useDisconnect()
 
   async function onConnect() {
-    // Prefer injected (installed extension) over WalletConnect
+    // Prefer injected (browser extension or in-app wallet browser) when actually available;
+    // fall back to WalletConnect QR for mobile browsers without an injected wallet.
     const inj = connectors.find((c) => c.id === 'injected')
-    const wc = connectors.find((c) => c.id === 'walletConnect')
-    const pick = inj ?? wc ?? connectors[0]
+    const wc  = connectors.find((c) => c.id === 'walletConnect')
+    let pick = wc ?? connectors[0]
+    if (inj) {
+      try {
+        const provider = await inj.getProvider()
+        if (provider) pick = inj
+      } catch {
+        // injected has no provider on this device; stick with WalletConnect
+      }
+    }
     if (!pick) return
     await connectAsync({ connector: pick })
   }
