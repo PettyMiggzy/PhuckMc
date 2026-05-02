@@ -14,10 +14,10 @@ export default function WalletButton() {
   const { disconnect } = useDisconnect()
 
   async function onConnect() {
-    // Prefer WalletConnect if available, otherwise injected
-    const wc = connectors.find((c) => c.id === 'walletConnect')
+    // Prefer injected (installed extension) over WalletConnect
     const inj = connectors.find((c) => c.id === 'injected')
-    const pick = wc ?? inj ?? connectors[0]
+    const wc = connectors.find((c) => c.id === 'walletConnect')
+    const pick = inj ?? wc ?? connectors[0]
     if (!pick) return
     await connectAsync({ connector: pick })
   }
