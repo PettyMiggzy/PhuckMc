@@ -10,6 +10,7 @@ const NAV_LINKS: [string, string][] = [
   ["Play", "/play"],
   ["Buybacks", "/buybacks"],
   ["Portfolio", "/portfolio"],
+  ["Vault", "/vault"],
   ["Memes", "/memes"],
 ];
 
